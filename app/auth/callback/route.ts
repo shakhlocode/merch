@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   const type = (requestUrl.searchParams.get('type') ?? 'email') as EmailOtpType
 
   const nextParam = requestUrl.searchParams.get('next') ?? '/catalog'
-  const next = nextParam.startsWith('/') ? nextParam : '/catalog'
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.includes('\\')
+    ? nextParam
+    : '/catalog'
 
   const supabase = await createClient()
 

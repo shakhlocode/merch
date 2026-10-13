@@ -36,8 +36,17 @@ function HashCallbackContent() {
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
         const tokenHash = callbackParams.tokenHash ?? hashParams.get('token_hash')
+        const code = searchParams.get('code')
 
-        if (accessToken && refreshToken) {
+        if (code) {
+          // The browser SDK exchanges PKCE codes during initialization.
+          // Wait for that result instead of consuming the same code twice.
+          const { error } = await supabase.auth.initialize()
+
+          if (error) {
+            throw error
+          }
+        } else if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -123,7 +132,9 @@ function getCallbackParams(searchParams: URLSearchParams) {
     }
   }
 
-  const next = nextParam.startsWith('/') ? nextParam : '/set-password?reset=1'
+  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.includes('\\')
+    ? nextParam
+    : '/set-password?reset=1'
 
   return { next, tokenHash, type }
 }
