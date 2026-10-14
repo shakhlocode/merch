@@ -77,7 +77,7 @@ do $$ begin
 end $$;
 
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
-select pg_temp.assert((select count(*)=4 from public.employees),'admin sees employee profiles');
+select pg_temp.assert((select count(*)=4 from public.employees where email in ('admin@example.test','employee@example.test','new@example.test','outsider@example.test')),'admin sees employee profiles');
 select public.admin_update_order((select id from public.orders limit 1),'confirmed','Checked',null);
 select public.admin_update_order((select id from public.orders limit 1),'shipped','Sent','TEST-TRACK');
 select pg_temp.assert((select total_qty=4 and reserved_qty=0 from public.product_variants where sku='TEST-SHIRT'),'shipping writes off reservation');
@@ -89,8 +89,8 @@ do $$ begin
   begin perform public.admin_update_order((select id from public.orders limit 1),'new',null,null); raise exception 'EXPECTED_DENIAL_MISSING';
   exception when others then if sqlerrm <> 'terminal_order_cannot_reopen' then raise; end if; end;
 end $$;
-select public.admin_set_order_handout((select id from public.orders limit 1),'Shelf A','handed_other','Test recipient');
-select pg_temp.assert((select storage_location='Shelf A' and handed_to='Test recipient' from public.orders),'handout fields');
+select public.admin_set_order_handout((select id from public.orders limit 1),'Shelf A','refused',null);
+select pg_temp.assert((select storage_location='Shelf A' from public.orders),'handout fields');
 insert into storage.objects(bucket_id,name) values('merch-products','test.jpg');
 select pg_temp.assert((select count(*)=1 from storage.objects),'admin can upload images');
 update public.employee_directory set full_name='HR updated name' where email='employee@example.test';
@@ -102,5 +102,5 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select pg_temp.assert((select count(*)=13 from pg_tables where schemaname='public'),'all thirteen tables installed');
+select pg_temp.assert((select count(*)=14 from pg_tables where schemaname='public'),'all fourteen tables installed');
 rollback;

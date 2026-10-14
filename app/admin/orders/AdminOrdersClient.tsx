@@ -4,15 +4,13 @@ import AdminShell from '@/components/AdminShell'
 import OrderBarcode from '@/components/OrderBarcode'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import QRCode from 'qrcode'
+import JsBarcode from 'jsbarcode'
+import Link from 'next/link'
+import OrderItemsEditor, { type EditableVariant } from '@/components/OrderItemsEditor'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
 import { getExportDate, getProductLetter, toCsv } from '@/lib/utils'
 
 type PickupStatus = 'pending' | 'packed' | 'handed_owner' | 'handed_other' | 'refused'
-
-const pickupStatusOptions: PickupStatus[] = [
-  'pending', 'packed', 'handed_owner', 'handed_other', 'refused',
-]
 
 const pickupStatusLabels: Record<PickupStatus, string> = {
   pending:      'Ожидает',
@@ -24,6 +22,7 @@ const pickupStatusLabels: Record<PickupStatus, string> = {
 
 export type AdminOrderItem = {
   id: string
+  variant_id: string
   product_name: string
   size: string | null
   color: string | null
@@ -34,6 +33,10 @@ export type AdminOrderItem = {
 export type AdminOrder = {
   id: string
   order_number: string
+  pickup_code: string | null
+  version: number
+  received_by_name: string | null
+  remote_contact_name: string | null
   employee_id: string
   status: OrderStatus
   delivery_type: DeliveryType
@@ -64,6 +67,9 @@ type AdminOrdersClientProps = {
   orders: AdminOrder[]
   adminEmail: string
   stockAlertCount: number
+  variants: EditableVariant[]
+  admins: { id: string; full_name: string }[]
+  events: { id: string; order_id: string; action: string; data: Record<string, unknown>; created_at: string }[]
 }
 
 type SortMode = 'date_desc' | 'date_asc' | 'number_desc' | 'number_asc'
@@ -73,8 +79,9 @@ const statusLabels: Record<OrderStatus, string> = {
   review: 'На проверке',
   confirmed: 'Подтверждён',
   assembling: 'Собирается',
+  ready: 'Готов к выдаче',
   shipped: 'Отправлен',
-  received: 'Получен',
+  received: 'Выдали',
   cancelled: 'Отменён',
   rejected: 'Отклонён',
 }
@@ -91,6 +98,7 @@ const statusOptions: OrderStatus[] = [
   'review',
   'confirmed',
   'assembling',
+  'ready',
   'shipped',
   'received',
   'cancelled',
@@ -100,7 +108,7 @@ const statusOptions: OrderStatus[] = [
 export default function AdminOrdersClient({
   orders,
   adminEmail,
-  stockAlertCount,
+  stockAlertCount, variants, admins, events,
 }: AdminOrdersClientProps) {
   const searchParams = useSearchParams()
   const queryFromUrl = searchParams.get('q') ?? ''
@@ -173,8 +181,8 @@ export default function AdminOrdersClient({
       if (sortMode === 'date_asc')
         return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       if (sortMode === 'number_desc')
-        return Number(b.order_number) - Number(a.order_number)
-      return Number(a.order_number) - Number(b.order_number)
+        return b.order_number.localeCompare(a.order_number, 'ru', { numeric: true })
+      return a.order_number.localeCompare(b.order_number, 'ru', { numeric: true })
     })
   }, [orders, search, sortMode, statusFilter])
 
@@ -197,6 +205,8 @@ export default function AdminOrdersClient({
         city:             order.city || '',
         delivery_type:    deliveryLabels[order.delivery_type],
         delivery_address: order.delivery_address || '',
+        is_remote: order.is_remote ? 'Да' : 'Нет',
+        contact: order.remote_contact_name || '',
         items_qty:        String(getTotalQty(order)),
         items:            itemsText,
         comment:          order.comment || '',
@@ -363,7 +373,7 @@ export default function AdminOrdersClient({
                       </div>
 
                       <div className="ao-delivery-cell">
-                        {deliveryLabels[order.delivery_type]}
+                        {order.is_remote ? 'Удалённый заказ' : 'В офисе'}
                       </div>
 
                       <div className="ao-date-cell">
@@ -381,7 +391,7 @@ export default function AdminOrdersClient({
                       </div>
                     </button>
 
-                    {isExpanded && <OrderDetail order={order} />}
+                    {isExpanded && <OrderDetail key={`${order.id}-${order.version}`} order={order} variants={variants} admins={admins} events={events.filter(e => e.order_id === order.id)} />}
                   </div>
                 )
               })}
@@ -436,7 +446,7 @@ function StatusTabs({
 /*  OrderDetail                                                                 */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function OrderDetail({ order }: { order: AdminOrder }) {
+function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; variants: EditableVariant[]; admins: AdminOrdersClientProps['admins']; events: AdminOrdersClientProps['events'] }) {
   const router = useRouter()
 
   const [status, setStatus] = useState<OrderStatus>(order.status)
@@ -444,10 +454,10 @@ function OrderDetail({ order }: { order: AdminOrder }) {
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number ?? '')
 
   const [storageLocation, setStorageLocation] = useState(order.storage_location ?? '')
-  const [pickupStatus, setPickupStatus] = useState<PickupStatus>(
+  const [pickupStatus] = useState<PickupStatus>(
     (order.pickup_status as PickupStatus) || 'pending'
   )
-  const [handedTo, setHandedTo] = useState(order.handed_to ?? '')
+  const [assignedTo, setAssignedTo] = useState(order.assigned_to ?? '')
 
   const [isSaving, setIsSaving] = useState(false)
   const [error,    setError]    = useState<string | null>(null)
@@ -464,11 +474,11 @@ function OrderDetail({ order }: { order: AdminOrder }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status,
+          version: order.version,
+          assigned_to: assignedTo || null,
           admin_comment: adminComment,
           tracking_number: trackingNumber,
           storage_location: storageLocation,
-          pickup_status: pickupStatus,
-          handed_to: handedTo,
         }),
       })
 
@@ -491,10 +501,12 @@ function OrderDetail({ order }: { order: AdminOrder }) {
   }
 
   async function handlePrintLabel() {
-    let qrUrl = ''
-    try {
-      qrUrl = await QRCode.toDataURL(order.order_number, { width: 160, margin: 1 })
-    } catch { /* QR is optional on the label */ }
+    let barcode = ''
+    if (order.pickup_code && !order.is_remote) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      JsBarcode(svg, order.pickup_code, { format: 'CODE128', width: 2, height: 70, margin: 16 })
+      barcode = new XMLSerializer().serializeToString(svg)
+    }
 
     const itemsHtml = order.order_items
       .map((it) => `<li>${escapeHtml(it.product_name)} — ${escapeHtml(formatVariant(it))} × ${it.qty}</li>`)
@@ -522,7 +534,7 @@ function OrderDetail({ order }: { order: AdminOrder }) {
         <div class="sec">Состав</div>
         <ul>${itemsHtml}</ul>
         <div class="loc">Где лежит: <b>${escapeHtml(storageLocation || '—')}</b></div>
-        ${qrUrl ? `<img src="${qrUrl}" width="150" height="150" alt="QR заказа"/>` : ''}
+        ${barcode}
       </div>
       <button onclick="window.print()">Печать</button>
       </body></html>`)
@@ -581,9 +593,9 @@ function OrderDetail({ order }: { order: AdminOrder }) {
       </div>
 
       {/* Выдача — штрихкод и наклейка */}
-      <div className="ao-handout-card">
+      {!order.is_remote && order.pickup_code && <div className="ao-handout-card">
         <div className="ao-handout-qr">
-          <OrderBarcode value={order.order_number} size={120} />
+          <OrderBarcode value={order.pickup_code} size={320} />
           <span className="ao-handout-num">#{order.order_number}</span>
         </div>
         <div className="ao-handout-body">
@@ -596,8 +608,14 @@ function OrderDetail({ order }: { order: AdminOrder }) {
             🖶 Напечатать наклейку
           </button>
         </div>
-      </div>
-
+      </div>}
+      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {order.remote_contact_name || 'Назначьте администратора ниже'}. Штрихкод не выдаётся.</p>}
+      {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
+      {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
+      <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
+      <details className="order-items-editor"><summary>Последние события заказа</summary>
+        {events.map(e => <p key={e.id}>{formatDateTime(e.created_at)} · {{ created: 'Создан', updated: 'Изменён', issued: 'Выдали', items_changed: 'Изменён состав' }[e.action] || e.action}</p>)}
+      </details>
       {/* Управление */}
       <div className="ao-manage-panel">
         <div className="ao-manage-head">
@@ -615,7 +633,7 @@ function OrderDetail({ order }: { order: AdminOrder }) {
               onChange={(e) => setStatus(e.target.value as OrderStatus)}
               className="ao-input"
             >
-              {statusOptions.map((opt) => (
+              {statusOptions.filter(opt => order.is_remote || !['received','shipped'].includes(opt) || opt === order.status).map((opt) => (
                 <option key={opt} value={opt}>{statusLabels[opt]}</option>
               ))}
             </select>
@@ -633,19 +651,6 @@ function OrderDetail({ order }: { order: AdminOrder }) {
           </label>
 
           <label className="ao-label">
-            Статус выдачи
-            <select
-              value={pickupStatus}
-              onChange={(e) => setPickupStatus(e.target.value as PickupStatus)}
-              className="ao-input"
-            >
-              {pickupStatusOptions.map((opt) => (
-                <option key={opt} value={opt}>{pickupStatusLabels[opt]}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="ao-label">
             Где лежит заказ
             <input
               type="text"
@@ -656,15 +661,11 @@ function OrderDetail({ order }: { order: AdminOrder }) {
             />
           </label>
 
-          <label className="ao-label">
-            Кому отдали
-            <input
-              type="text"
-              value={handedTo}
-              onChange={(e) => setHandedTo(e.target.value)}
-              placeholder="Если отдали другу заказчика — ФИО"
-              className="ao-input"
-            />
+          <label className="ao-label">Ответственный администратор
+            <select className="ao-input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+              <option value="">Не назначен</option>
+              {admins.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+            </select>
           </label>
 
           <label className="ao-label-wide">

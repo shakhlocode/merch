@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabase.rpc('create_merch_order', {
       p_items: items,
-      p_delivery_type: body.delivery_type ?? 'office',
+      p_delivery_type: 'office',
       p_delivery_address: body.delivery_address ?? null,
       p_phone: body.phone ?? null,
       p_comment: body.comment ?? null,

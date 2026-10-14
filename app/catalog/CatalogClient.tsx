@@ -190,7 +190,7 @@ export default function CatalogClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items:            cart.map(item => ({ variant_id: item.variant.id, qty: 1 })),
-          delivery_type:    deliveryType,
+          delivery_type:    'office',
           delivery_address: deliveryAddress,
           phone,
           comment,
@@ -210,11 +210,10 @@ export default function CatalogClient({
       setDeliveryAddress(checkoutDefaults.deliveryAddress)
       setPhone(checkoutDefaults.phone)
       setComment('')
-      setIsRemote(false)
       setCountry('')
       setCheckoutSuccess(
         result.order?.order_number
-          ? `Заказ #${result.order.order_number} успешно создан`
+          ? (isRemote ? `Заказ #${result.order.order_number} принят. Ответственный сотрудник свяжется с вами и сообщит, как получить мерч.` : `Заказ #${result.order.order_number} создан. Ваш штрихкод — в разделе «Мои заказы».`)
           : 'Заказ успешно создан'
       )
     } catch (err) {
@@ -566,7 +565,6 @@ function CartAside({
   checkoutSuccess,
   merchAccess,
   onRemove,
-  onDeliveryTypeChange,
   onDeliveryAddressChange,
   onPhoneChange,
   onCommentChange,
@@ -649,20 +647,7 @@ function CartAside({
           </div>
 
           <div className="cart-form">
-            <label className="form-label">
-              Способ получения
-              <select
-                className="form-select"
-                value={deliveryType}
-                onChange={e => onDeliveryTypeChange(e.target.value as DeliveryType)}
-              >
-                <option value="office">В офис</option>
-                <option value="pvz">ПВЗ / филиал</option>
-                <option value="pickup">Самовывоз</option>
-                <option value="courier">Курьер</option>
-              </select>
-            </label>
-
+            <p>Получение в офисе. Для удалённых сотрудников получение согласует ответственный администратор.</p>
             <label className="form-label">
               Адрес / офис / точка получения
               <input

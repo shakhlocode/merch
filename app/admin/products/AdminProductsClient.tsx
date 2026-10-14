@@ -924,8 +924,8 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
           <option value="adjustment">adjustment — Коррекция</option>
         </select>
 
-        <input value={qty}     onChange={(e) => setQty(e.target.value)}     type="number" placeholder={movementType === 'income' ? 'qty > 0' : 'можно +/-'} className="ap-input" />
-        <input value={comment} onChange={(e) => setComment(e.target.value)}              placeholder="Комментарий" className="ap-input" />
+        <input value={qty}     onChange={(e) => setQty(e.target.value)}     type="number" placeholder={movementType === 'income' ? 'Добавить количество' : 'Добавить (+) / убрать (−)' } className="ap-input" />
+        <input value={comment} onChange={(e) => setComment(e.target.value)}              placeholder="Причина изменения остатка" className="ap-input" />
 
         <button
           type="button"

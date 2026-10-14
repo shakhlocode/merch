@@ -1,5 +1,8 @@
 # Развёрнутая копия
 
+Офисная выдача по Code 128, удалённые заказы и изменение состава описаны в
+[HANDOUT.md](HANDOUT.md). Новый экран выдачи: `/admin/issue`.
+
 - Сайт: https://uzum-merch-taupe.vercel.app
 - Vercel: https://vercel.com/shakhlo/uzum-merch
 - Supabase: https://supabase.com/dashboard/project/ujdvmygoarxiudttaure

@@ -1,45 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
+import { useEffect, useRef, useState } from 'react'
+import JsBarcode from 'jsbarcode'
 
-type OrderBarcodeProps = {
-  /** Value encoded in the QR — the order number is enough to identify a pickup. */
-  value: string
-  size?: number
-}
-
-/**
- * Renders a scannable QR code for order pickup. The employee shows it at
- * handout; staff scan or match it against the order number.
- */
-export default function OrderBarcode({ value, size = 132 }: OrderBarcodeProps) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null)
-
+export default function OrderBarcode({ value, size = 320 }: { value: string; size?: number }) {
+  const ref = useRef<SVGSVGElement>(null)
+  const [failed, setFailed] = useState(false)
   useEffect(() => {
-    let active = true
-    QRCode.toDataURL(value, {
-      width: size,
-      margin: 1,
-      color: { dark: '#1a0d3a', light: '#ffffff' },
-    })
-      .then((url) => { if (active) setDataUrl(url) })
-      .catch(() => { /* QR rendering is best-effort; the order number stays visible */ })
-    return () => { active = false }
-  }, [value, size])
-
-  if (!dataUrl) {
-    return <div className="order-qr-img order-qr-placeholder" style={{ width: size, height: size }} />
-  }
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={dataUrl}
-      alt={`Код заказа ${value}`}
-      width={size}
-      height={size}
-      className="order-qr-img"
-    />
-  )
+    if (!ref.current) return
+    try {
+      JsBarcode(ref.current, value, { format: 'CODE128', width: 2, height: 70,
+        displayValue: true, fontSize: 17, margin: 16, background: '#ffffff', lineColor: '#111111' })
+      setFailed(false)
+    } catch { setFailed(true) }
+  }, [value])
+  return <div className="pickup-barcode" style={{ width: size, maxWidth: '100%' }}>
+    <svg ref={ref} role="img" aria-label={`Штрихкод получения ${value}`} style={{ width: '100%', height: 'auto' }} />
+    {failed && <p>Код для ручного ввода: {value}</p>}
+  </div>
 }

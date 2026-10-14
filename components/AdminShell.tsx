@@ -14,6 +14,7 @@ type AdminShellProps = {
 }
 
 const navItems = [
+  { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование Code 128', icon: '▥' },
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
   { key: 'orders',    href: '/admin/orders',             label: 'Заказы',  description: 'Заявки и статусы', icon: '◇' },
   { key: 'stock',     href: '/admin/products',           label: 'Склад',   description: 'Остатки товаров',  icon: '▦' },
@@ -84,6 +85,7 @@ export default function AdminShell({
         <nav className="admin-nav">
           {navItems.map((item, index) => {
             const active =
+              (item.key === 'issue' && pathname === '/admin/issue') ||
               (item.key === 'dashboard' && pathname === '/admin') ||
               (item.key === 'orders'    && pathname === '/admin/orders') ||
               (item.key === 'stock'     && pathname === '/admin/products' && mode !== 'cards') ||
@@ -141,6 +143,7 @@ export default function AdminShell({
           </div>
 
           <div className="admin-topbar-actions">
+            <Link href="/admin/issue" className="ao-light-btn">Выдача по коду</Link>
             <form
               className="admin-search admin-card-hover"
               onSubmit={handleTopSearchSubmit}

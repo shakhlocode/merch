@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const { data: employee, error: employeeError } = await supabase
       .from('employees')
-      .select('id, is_admin')
+      .select('id, is_admin, is_active')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!employee?.is_admin) {
+    if (!employee?.is_admin || !employee.is_active) {
       return NextResponse.json(
         { error: 'Доступ разрешён только администратору' },
         { status: 403 }
@@ -164,6 +164,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      const initialQty = Number(body.initial_qty ?? 0)
+
+      if (!Number.isInteger(initialQty) || initialQty < 0) {
+        return NextResponse.json({ error: 'Начальный остаток должен быть целым неотрицательным числом' }, { status: 400 })
+      }
+
       const { data: variant, error: variantError } = await supabase
         .from('product_variants')
         .insert({
@@ -185,9 +191,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const initialQty = Number(body.initial_qty ?? 0)
-
-      if (Number.isFinite(initialQty) && initialQty > 0) {
+      if (initialQty > 0) {
         const { error: stockError } = await supabase
           .from('stock_movements')
           .insert({
@@ -255,7 +259,7 @@ export async function POST(request: NextRequest) {
 
       const qty = Number(body.qty)
 
-      if (!Number.isFinite(qty) || qty === 0) {
+      if (!Number.isInteger(qty) || qty === 0) {
         return NextResponse.json(
           { error: 'Количество должно быть не равно 0' },
           { status: 400 }
@@ -271,6 +275,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      if (!['income','adjustment'].includes(movementType) || (movementType === 'income' && qty < 0)) {
+        return NextResponse.json({ error: 'Некорректное движение остатков' }, { status: 400 })
+      }
+      if (movementType === 'adjustment' && !cleanText(body.comment)) {
+        return NextResponse.json({ error: 'Укажите причину корректировки остатка' }, { status: 400 })
+      }
       const { data, error } = await supabase
         .from('stock_movements')
         .insert({
@@ -288,7 +298,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: 'Нельзя убрать зарезервированные единицы или сделать остаток отрицательным. Проверьте доступное количество.' }, { status: 400 })
       }
 
       return NextResponse.json({ ok: true, movement: data })

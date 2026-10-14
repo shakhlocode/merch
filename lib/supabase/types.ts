@@ -6,6 +6,7 @@ export type OrderStatus =
   | 'review'
   | 'confirmed'
   | 'assembling'
+  | 'ready'
   | 'shipped'
   | 'received'
   | 'cancelled'
@@ -26,8 +27,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   review:     'На проверке',
   confirmed:  'Подтвержден',
   assembling: 'Собирается',
+  ready:      'Готов к выдаче',
   shipped:    'Отправлен',
-  received:   'Получен',
+  received:   'Выдали',
   cancelled:  'Отменен',
   rejected:   'Отклонен',
 }
@@ -56,6 +58,12 @@ type Rel<
 export type Database = {
   public: {
     Tables: {
+      order_events: {
+        Row: { id: string; order_id: string; actor_id: string | null; action: string; data: Record<string, unknown>; created_at: string }
+        Insert: never
+        Update: never
+        Relationships: never[]
+      }
       employees: {
         Row: {
           id:          string
@@ -259,6 +267,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          pickup_code: string | null
+          version: number
+          received_by: string | null
+          received_by_name: string | null
+          remote_contact_name: string | null
           id:               string
           order_number:     string
           employee_id:      string
@@ -420,6 +433,18 @@ export type Database = {
       }
     }
     Functions: {
+      admin_issue_order: {
+        Args: { p_code: string }
+        Returns: { order_id: string; order_number: string; already_issued: boolean; received_at: string; issued_by_name: string | null; recipient: string | null }
+      }
+      admin_save_order: {
+        Args: { p_order_id: string; p_status: OrderStatus; p_expected_version: number; p_admin_comment: string | null; p_tracking_number: string | null; p_storage_location: string | null; p_assigned_to: string | null }
+        Returns: unknown
+      }
+      admin_replace_order_items: {
+        Args: { p_order_id: string; p_items: { variant_id: string; qty: number }[]; p_expected_version: number }
+        Returns: unknown
+      }
       create_merch_order: {
         Args: {
           p_items:            { variant_id: string; qty: number }[]

@@ -24,6 +24,10 @@ type OrderItem = {
 type Order = {
   id: string
   order_number: string
+  is_remote: boolean
+  pickup_code: string | null
+  remote_contact_name: string | null
+  received_by_name: string | null
   status: OrderStatus
   delivery_type: DeliveryType
   delivery_address: string | null
@@ -52,8 +56,9 @@ const statusLabels: Record<OrderStatus, string> = {
   review:     'На проверке',
   confirmed:  'Подтверждён',
   assembling: 'Собирается',
+  ready: 'Готов к выдаче',
   shipped:    'Отправлен',
-  received:   'Получен',
+  received:   'Выдали',
   cancelled:  'Отменён',
   rejected:   'Отклонён',
 }
@@ -63,6 +68,7 @@ const statusPillClass: Record<OrderStatus, string> = {
   review:     'pill pill-amber',
   confirmed:  'pill pill-blue',
   assembling: 'pill pill-blue',
+  ready: 'pill pill-green',
   shipped:    'pill pill-green',
   received:   'pill pill-green',
   cancelled:  'pill pill-red',
@@ -77,7 +83,7 @@ const deliveryLabels: Record<DeliveryType, string> = {
 }
 
 const flowStatuses: OrderStatus[] = [
-  'new', 'review', 'confirmed', 'assembling', 'shipped', 'received',
+  'new', 'review', 'confirmed', 'assembling', 'ready', 'shipped', 'received',
 ]
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -100,7 +106,7 @@ export default async function OrdersPage() {
   const { data: rawOrders, error } = await supabase
     .from('orders')
     .select(`
-      id, order_number, status, delivery_type, delivery_address,
+      id, order_number, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
       full_name, phone, email, city, department,
       comment, admin_comment, tracking_number,
       created_at, confirmed_at, shipped_at, received_at, cancelled_at,
@@ -347,16 +353,20 @@ function OrderCard({ order }: { order: Order }) {
         </div>
       )}
 
+      {order.is_remote && !isRejected && <div className="order-pickup">
+        <p>Ваш заказ принят. {order.remote_contact_name ? `${order.remote_contact_name} свяжется с вами` : 'Ответственный сотрудник свяжется с вами'} и сообщит, как получить мерч, включая трек-номер при отправке. Штрихкод для офисной выдачи не нужен.</p>
+      </div>}
+      {isReceived && <p>Выдали: {order.received_at ? formatDateTime(order.received_at) : 'Дата не указана'} · {order.received_by_name || 'Администратор не указан'}</p>}
       {/* ── Pickup barcode ── */}
-      {!isRejected && (
+      {!isRejected && !order.is_remote && order.pickup_code && (
         <div className="order-pickup">
-          <OrderBarcode value={order.order_number} size={104} />
+          <OrderBarcode value={order.pickup_code} size={320} />
           <div className="order-pickup-text">
             <b>Код для получения: <span className="order-pickup-num">#{order.order_number}</span></b>
             <span>
               {isReceived
-                ? 'Заказ уже получен.'
-                : 'Покажите этот код при получении мерча — по нему вас найдут в списке.'}
+                ? 'Заказ уже выдали.'
+                : 'Покажите штрихкод при получении. Выдача доступна после статуса «Готов к выдаче».'}
             </span>
           </div>
         </div>
@@ -424,6 +434,7 @@ function getFlowLabel(status: OrderStatus) {
     review:     'Проверка',
     confirmed:  'Подтверждение',
     assembling: 'Сборка',
+    ready: 'Готов к выдаче',
     shipped:    'Отправка',
     received:   'Получение',
   }

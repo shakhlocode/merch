@@ -4,6 +4,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Развёрнутый сайт и дальнейшая работа: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+Выдача по Code 128 и редактирование заказов: [docs/HANDOUT.md](docs/HANDOUT.md).
+
 ## Getting Started
 
 First, run the development server:

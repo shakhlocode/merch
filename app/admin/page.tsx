@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 
 type OrderStatus =
   | 'new' | 'review' | 'confirmed' | 'assembling'
-  | 'shipped' | 'received' | 'cancelled' | 'rejected'
+  | 'ready' | 'shipped' | 'received' | 'cancelled' | 'rejected'
 
 type AdminDashOrderItem = {
   id: string
@@ -51,14 +51,15 @@ const statusLabels: Record<OrderStatus, string> = {
   review:     'На проверке',
   confirmed:  'Подтверждён',
   assembling: 'Собирается',
+  ready: 'Готов к выдаче',
   shipped:    'Отправлен',
-  received:   'Получен',
+  received:   'Выдали',
   cancelled:  'Отменён',
   rejected:   'Отклонён',
 }
 
 const statusOrder: OrderStatus[] = [
-  'new', 'review', 'confirmed', 'assembling', 'shipped', 'received', 'cancelled', 'rejected',
+  'new', 'review', 'confirmed', 'assembling', 'ready', 'shipped', 'received', 'cancelled', 'rejected',
 ]
 
 export default async function AdminDashboardPage() {
