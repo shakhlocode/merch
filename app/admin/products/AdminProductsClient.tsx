@@ -5,7 +5,8 @@ import ProductImage from '@/components/ProductImage'
 import ProductImageUploader from '@/components/ProductImageUploader'
 import { getExportDate, getProductLetter, toCsv } from '@/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export type AdminCategory = {
   id: string
@@ -244,7 +245,7 @@ export default function AdminProductsClient({
             <b>{isCardsMode ? 'Режим карточек товара' : 'Режим склада'}</b>
             <span>
               {isCardsMode
-                ? ' Клик по строке открывает редактирование карточки, фото, описания и вариантов.'
+                ? ' Кнопка «Редактировать карточку» открывает поля во всплывающем окне.'
                 : ' Клик по строке раскрывает складские варианты и остатки.'}
             </span>
           </div>
@@ -293,12 +294,7 @@ export default function AdminProductsClient({
               })}
             </section>
 
-            {editingProductId && (
-              <ProductEditPanel
-                product={filteredProducts.find((p) => p.id === editingProductId)!}
-                onClose={() => setEditingProductId(null)}
-              />
-            )}
+
           </>
 
         ) : (
@@ -322,12 +318,7 @@ export default function AdminProductsClient({
                       setEditingProductId(isEditing ? null : product.id)
                     }}
                   />
-                  {isEditing && (
-                    <ProductEditPanel
-                      product={product}
-                            onClose={() => setEditingProductId(null)}
-                    />
-                  )}
+
                 </div>
               )
             })}
@@ -335,6 +326,13 @@ export default function AdminProductsClient({
         )}
 
       </section>
+      {products.find(product => product.id === editingProductId) && (
+        <ProductEditDialog
+          key={editingProductId}
+          product={products.find(product => product.id === editingProductId)!}
+          onClose={() => setEditingProductId(null)}
+        />
+      )}
     </AdminShell>
   )
 }
@@ -602,13 +600,48 @@ function ProductRow({
 /*  ProductEditPanel                                                             */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function ProductEditPanel({
-  product,
-  onClose,
-}: {
-  product: AdminProduct
-  onClose: () => void
-}) {
+function ProductEditDialog({ product, onClose }: { product: AdminProduct; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const previousOverflow = document.body.style.overflow
+    const previousFocus = document.activeElement
+    document.body.style.overflow = 'hidden'
+    dialog.showModal()
+    return () => {
+      dialog.close()
+      document.body.style.overflow = previousOverflow
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true })
+    }
+  }, [])
+
+  return createPortal(
+    <dialog ref={dialogRef} className="ap-edit-dialog" aria-labelledby="product-edit-dialog-title"
+      onClose={event => {
+        // Strict Mode may reopen the dialog before a queued close event arrives.
+        if (!event.currentTarget.open) onClose()
+      }}
+      onKeyDown={event => {
+        if (event.key !== 'Tab') return
+        const fields = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'))
+          .filter(field => !field.matches(':disabled') && field.getClientRects().length > 0)
+        const first = fields[0], last = fields[fields.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }}>
+
+      <div className="ap-dialog-header">
+        <h2 id="product-edit-dialog-title">Редактирование товара</h2>
+        <button type="button" className="ap-dialog-close" aria-label="Закрыть редактирование товара" onClick={onClose}>×</button>
+      </div>
+      <div className="ap-dialog-body"><ProductEditPanel product={product} /></div>
+    </dialog>,
+    document.body
+  )
+}
+
+function ProductEditPanel({ product }: { product: AdminProduct }) {
   const stats    = getProductStats(product)
   const imageUrl = product.image_url || product.images?.[0] || ''
 
@@ -636,9 +669,6 @@ function ProductEditPanel({
           </div>
         </div>
 
-        <div className="ap-edit-hero-actions">
-          <button type="button" onClick={onClose} className="ap-dark-btn">Закрыть</button>
-        </div>
       </div>
 
       <section className="ap-expanded">
