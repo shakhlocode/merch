@@ -3990,3 +3990,12 @@ input:focus, select:focus, textarea:focus {
 .catalog-page .empty { grid-column: 1 / -1; }
 .catalog-page .cat-pill { padding-inline: 10px; font-size: 12px; }
 .catalog-page .catalog-rules { display: block; }
+
+.ap-size-setup { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; }
+.ap-size-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+.ap-size-total { margin: 0; font-size: 16px; color: var(--ink); }
+@media (max-width: 640px) { .ap-size-row { grid-template-columns: 1fr 1fr; } .ap-size-setup { padding: 12px; } }
+.welcome-intro { margin-bottom: 32px; max-width: 720px; }
+.welcome-intro .section-title { margin: 12px 0; }
+.welcome-product-art { position: relative; overflow: hidden; }
+.welcome-product-art img { width: 100%; height: 100%; object-fit: cover; }

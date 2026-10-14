@@ -30,6 +30,7 @@ export type AdminProduct = {
   id: string
   name: string
   description: string | null
+  placement: string
   material: string | null
   category_id: string | null
   image_url: string | null
@@ -251,7 +252,7 @@ export default function AdminProductsClient({
 
         {/* Create product panel */}
         {isCreateOpen && (
-          <CreateProductCard categories={categories} onClose={() => setIsCreateOpen(false)} />
+          <CreateProductCard onClose={() => setIsCreateOpen(false)} />
         )}
 
         {/* Summary strip */}
@@ -295,7 +296,6 @@ export default function AdminProductsClient({
             {editingProductId && (
               <ProductEditPanel
                 product={filteredProducts.find((p) => p.id === editingProductId)!}
-                categories={categories}
                 onClose={() => setEditingProductId(null)}
               />
             )}
@@ -325,8 +325,7 @@ export default function AdminProductsClient({
                   {isEditing && (
                     <ProductEditPanel
                       product={product}
-                      categories={categories}
-                      onClose={() => setEditingProductId(null)}
+                            onClose={() => setEditingProductId(null)}
                     />
                   )}
                 </div>
@@ -344,24 +343,34 @@ export default function AdminProductsClient({
 /*  CreateProductCard                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CreateProductCard({
-  categories,
-  onClose,
-}: {
-  categories: AdminCategory[]
-  onClose: () => void
-}) {
+function PlacementSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <label className="ap-label">Где будет отображаться товар?
+    <select aria-label="Где будет отображаться товар?" value={value} onChange={e => onChange(e.target.value)} className="ap-input">
+      <option value="catalog">В основном каталоге</option>
+      <option value="welcome">В Welcome-pack</option>
+      <option value="both">В каталоге и Welcome-pack</option>
+    </select>
+  </label>
+}
+
+function CreateProductCard({ onClose }: { onClose: () => void }) {
   const router = useRouter()
 
   const [name,        setName]        = useState('')
   const [description, setDescription] = useState('')
-  const [material,    setMaterial]    = useState('')
-  const [categoryId,  setCategoryId]  = useState(categories[0]?.id ?? '')
+  const [placement, setPlacement] = useState('catalog')
+  const [sizeMode, setSizeMode] = useState('single')
+  const [sizes, setSizes] = useState([{ size: 'ONE SIZE', color: '', qty: '' }])
+  const total = sizes.reduce((sum, row) => sum + (Number(row.qty) || 0), 0)
   const [imageUrl,    setImageUrl]    = useState('')
   const [isSaving,    setIsSaving]    = useState(false)
   const [error,       setError]       = useState<string | null>(null)
 
   async function handleCreate() {
+    if (!name.trim()) { setError('Укажите название товара'); return }
+    if (sizes.some(row => !row.size.trim() || row.qty === '' || !Number.isInteger(Number(row.qty)) || Number(row.qty) < 0)) {
+      setError('Укажите каждый размер и целое количество от 0'); return
+    }
     setIsSaving(true)
     setError(null)
 
@@ -373,8 +382,8 @@ function CreateProductCard({
           action: 'create_product',
           name,
           description,
-          material,
-          category_id: categoryId || null,
+          placement,
+          variants: sizes.map(row => ({ ...row, qty: Number(row.qty) })),
           image_url: imageUrl,
           is_active: true,
         }),
@@ -383,7 +392,7 @@ function CreateProductCard({
       const result = await response.json()
       if (!response.ok) { setError(result.error || 'Не удалось создать товар'); return }
 
-      setName(''); setDescription(''); setMaterial(''); setImageUrl('')
+      setName(''); setDescription(''); setImageUrl('')
       onClose()
       router.refresh()
     } catch (e) {
@@ -398,7 +407,7 @@ function CreateProductCard({
       <div className="ap-create-head">
         <div>
           <h2 className="ap-panel-title">Новый товар</h2>
-          <p className="ap-panel-hint">Создайте карточку. Варианты и остатки можно добавить после создания.</p>
+          <p className="ap-panel-hint">Укажите, где показывать товар, его размеры и начальные остатки.</p>
         </div>
         <button type="button" onClick={onClose} className="ap-light-btn">Свернуть</button>
       </div>
@@ -409,21 +418,27 @@ function CreateProductCard({
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Худи «Команда»" className="ap-input" />
         </label>
 
-        <label className="ap-label">
-          Категория
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="ap-input">
-            <option value="">Без категории</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-
-        <label className="ap-label">
-          Материал
-          <input value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="Например: хлопок" className="ap-input" />
-        </label>
+        <PlacementSelect value={placement} onChange={setPlacement} />
+        <div className="ap-label-wide ap-size-setup">
+          <label className="ap-label">Размеры
+            <select aria-label="Размеры" className="ap-input" value={sizeMode} onChange={e => {
+              setSizeMode(e.target.value)
+              setSizes(e.target.value === 'single' ? [{ size: 'ONE SIZE', color: '', qty: '' }] : ['S','M','L'].map(size => ({ size, color: '', qty: '' })))
+            }}><option value="single">Один размер</option><option value="range">Размерный ряд</option></select>
+          </label>
+          <p className="ap-panel-hint">{sizeMode === 'single' ? 'Для товаров без размерного ряда оставьте ONE SIZE.' : 'Укажите каждый размер и количество на складе. Нулевой остаток допустим.'}</p>
+          {sizes.map((row, index) => <div key={index} className="ap-size-row">
+            <label className="ap-label">Размер<input className="ap-input" aria-label={`Размер ${index + 1}`} value={row.size} onChange={e => setSizes(current => current.map((r, i) => i === index ? { ...r, size: e.target.value } : r))} /></label>
+            <label className="ap-label">Цвет · необязательно<input className="ap-input" aria-label={`Цвет ${index + 1}`} value={row.color} onChange={e => setSizes(current => current.map((r, i) => i === index ? { ...r, color: e.target.value } : r))} /></label>
+            <label className="ap-label">Количество, шт.<input className="ap-input" type="number" min="0" max="2147483647" step="1" aria-label={`Количество ${index + 1}`} value={row.qty} onChange={e => setSizes(current => current.map((r, i) => i === index ? { ...r, qty: e.target.value } : r))} /></label>
+            {sizeMode === 'range' && sizes.length > 1 && <button type="button" className="ap-light-btn" aria-label={`Удалить размер ${index + 1}`} onClick={() => setSizes(current => current.filter((_, i) => i !== index))}>×</button>}
+          </div>)}
+          {sizeMode === 'range' && <button type="button" className="ap-light-btn" disabled={sizes.length >= 100} onClick={() => setSizes(current => [...current, { size: '', color: '', qty: '' }])}>+ Добавить размер</button>}
+          <p className="ap-size-total" aria-live="polite">Всего на складе: <strong>{total} шт.</strong></p>
+        </div>
 
         <label className="ap-label-wide">
-          Описание
+          Описание · необязательно
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Описание товара" className="ap-textarea" />
         </label>
 
@@ -483,7 +498,7 @@ function ProductCardMode({
         </p>
 
         <div className="ap-card-meta">
-          <div className="ap-card-meta-item"><span>Материал</span><b>{product.material || 'Не указан'}</b></div>
+          <div className="ap-card-meta-item"><span>Раздел</span><b>{product.placement === 'both' ? 'Каталог и Welcome-pack' : product.placement === 'welcome' ? 'Welcome-pack' : 'Основной каталог'}</b></div>
           <div className="ap-card-meta-item"><span>Вариантов</span><b>{product.product_variants.length}</b></div>
           <div className="ap-card-meta-item"><span>Доступно</span><b>{stats.availableQty} шт.</b></div>
         </div>
@@ -589,11 +604,9 @@ function ProductRow({
 
 function ProductEditPanel({
   product,
-  categories,
   onClose,
 }: {
   product: AdminProduct
-  categories: AdminCategory[]
   onClose: () => void
 }) {
   const stats    = getProductStats(product)
@@ -629,7 +642,7 @@ function ProductEditPanel({
       </div>
 
       <section className="ap-expanded">
-        <ProductMainEditor product={product} categories={categories} />
+        <ProductMainEditor product={product} />
         <VariantsEditor product={product} />
       </section>
     </section>
@@ -640,19 +653,12 @@ function ProductEditPanel({
 /*  ProductMainEditor                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function ProductMainEditor({
-  product,
-  categories,
-}: {
-  product: AdminProduct
-  categories: AdminCategory[]
-}) {
+function ProductMainEditor({ product }: { product: AdminProduct }) {
   const router = useRouter()
 
   const [name,        setName]        = useState(product.name)
   const [description, setDescription] = useState(product.description ?? '')
-  const [material,    setMaterial]    = useState(product.material ?? '')
-  const [categoryId,  setCategoryId]  = useState(product.category_id ?? '')
+  const [placement, setPlacement] = useState(product.placement ?? 'catalog')
   const [imageUrl,    setImageUrl]    = useState(product.image_url ?? '')
   const [isActive,    setIsActive]    = useState(product.is_active)
   const [isSaving,    setIsSaving]    = useState(false)
@@ -669,8 +675,7 @@ function ProductMainEditor({
         body: JSON.stringify({
           action: 'update_product',
           product_id: product.id,
-          name, description, material,
-          category_id: categoryId || null,
+          name, description, placement,
           image_url: imageUrl,
           is_active: isActive,
         }),
@@ -697,7 +702,7 @@ function ProductMainEditor({
         </div>
         <label className="ap-switch-label">
           <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          Видим в каталоге
+          Товар включён
         </label>
       </div>
 
@@ -708,25 +713,14 @@ function ProductMainEditor({
         </label>
 
         <label className="ap-label-wide">
-          Описание
+          Описание · необязательно
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="ap-textarea" />
         </label>
 
-        <label className="ap-label">
-          Категория · CATEGORY_ID
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="ap-input">
-            <option value="">Без категории</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
-
-        <label className="ap-label">
-          Материал
-          <input value={material} onChange={(e) => setMaterial(e.target.value)} className="ap-input" />
-        </label>
+        <PlacementSelect value={placement} onChange={setPlacement} />
 
         <div className="ap-label-wide">
-          <ProductImageUploader value={imageUrl} onChange={setImageUrl} productId={product.id} label="IMAGE_URL" />
+          <ProductImageUploader value={imageUrl} onChange={setImageUrl} productId={product.id} label="Фото товара" />
         </div>
       </div>
 

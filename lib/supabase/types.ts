@@ -154,6 +154,7 @@ export type Database = {
       products: {
         Row: {
           id:          string
+          placement:   string
           name:        string
           description: string | null
           material:    string | null
@@ -166,6 +167,7 @@ export type Database = {
         }
         Insert: {
           id?:          string
+          placement?:   string
           name:         string
           description?: string | null
           material?:    string | null
@@ -433,6 +435,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_product: {
+        Args: { p_name: string; p_description: string | null; p_image_url: string | null; p_placement: string; p_variants: { size: string; color: string; qty: number }[] }
+        Returns: { id: string }
+      }
       admin_issue_order: {
         Args: { p_code: string }
         Returns: { order_id: string; order_number: string; already_issued: boolean; received_at: string; issued_by_name: string | null; recipient: string | null }

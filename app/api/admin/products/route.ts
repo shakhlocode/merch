@@ -16,6 +16,8 @@ type Payload = {
 
   name?: string
   description?: string | null
+  placement?: string
+  variants?: { size: string; color: string; qty: number }[]
   material?: string | null
   category_id?: string | null
   image_url?: string | null
@@ -85,19 +87,16 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          name,
-          description: cleanText(body.description),
-          material: cleanText(body.material),
-          category_id: cleanText(body.category_id),
-          image_url: cleanText(body.image_url),
-          images: cleanText(body.image_url) ? [cleanText(body.image_url) as string] : [],
-          is_active: body.is_active ?? true,
-        })
-        .select('id')
-        .single()
+      if (!['catalog', 'welcome', 'both'].includes(body.placement ?? '') || !Array.isArray(body.variants)) {
+        return NextResponse.json({ error: 'Укажите раздел, размеры и начальные остатки' }, { status: 400 })
+      }
+      const { data, error } = await supabase.rpc('admin_create_product', {
+        p_name: name,
+        p_description: cleanText(body.description),
+        p_image_url: cleanText(body.image_url),
+        p_placement: body.placement!,
+        p_variants: body.variants,
+      })
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 400 })
@@ -123,6 +122,9 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      if (body.placement !== undefined && !['catalog', 'welcome', 'both'].includes(body.placement)) {
+        return NextResponse.json({ error: 'Выберите раздел для товара' }, { status: 400 })
+      }
       const imageUrl = cleanText(body.image_url)
 
       const { data, error } = await supabase
@@ -130,8 +132,9 @@ export async function POST(request: NextRequest) {
         .update({
           name,
           description: cleanText(body.description),
-          material: cleanText(body.material),
-          category_id: cleanText(body.category_id),
+          ...(body.material !== undefined ? { material: cleanText(body.material) } : {}),
+          ...(body.category_id !== undefined ? { category_id: cleanText(body.category_id) } : {}),
+          ...(body.placement !== undefined ? { placement: body.placement } : {}),
           image_url: imageUrl,
           images: imageUrl ? [imageUrl] : [],
           is_active: body.is_active ?? true,

@@ -85,6 +85,7 @@ export default async function CatalogPage() {
     `
     )
     .eq('is_active', true)
+    .in('placement', ['catalog', 'both'])
     .order('name', { ascending: true })
 
   if (error) {

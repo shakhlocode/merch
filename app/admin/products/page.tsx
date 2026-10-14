@@ -82,6 +82,7 @@ export default async function AdminProductsPage() {
       name,
       description,
       material,
+      placement,
       category_id,
       image_url,
       images,
