@@ -11,6 +11,7 @@ import { parseEmployeeCsv, validateEmployeeRows, type ImportEmployee } from '@/l
 
 export default function EmployeeImport() {
   const router = useRouter()
+  const [inviteScope,setInviteScope]=useState<'catalog'|'welcome'>('catalog')
   const [invitation, setInvitation] = useState<InvitationChoiceValue>('none')
   const [inviteResults, setInviteResults] = useState<InvitationResult[]>([])
   const [mode, setMode] = useState<AccessMode>('unlimited')
@@ -26,7 +27,7 @@ export default function EmployeeImport() {
     <a href="/templates/employees.csv" download className="login-text-button">Скачать шаблон CSV для Excel</a>
     <p>Существующие email будут пропущены. Для личных ссылок без почты также пропускаются существующие идентификаторы. С приглашением доступ откроется после его активации.</p>
     <p>Тип доступа ниже будет назначен всем новым сотрудникам из файла.</p>
-    <InvitationChoice value={invitation} onChange={value => { setInvitation(value); setRows([]); setErrors([]) }} />
+    <InvitationChoice scope={inviteScope} onScope={setInviteScope} value={invitation} onChange={value => { setInvitation(value); setRows([]); setErrors([]) }} />
     <EmployeeAccessFields mode={mode} until={until} onMode={setMode} onUntil={setUntil} />
     <label className="ae-field">Выберите таблицу<input type="file" accept=".xlsx,.csv" disabled={busy} onChange={async event => {
       const file = event.target.files?.[0]; setRows([]); setErrors([]); setMessage(''); setSubmitError('')
@@ -48,10 +49,10 @@ export default function EmployeeImport() {
     <button type="button" className="ae-save-btn" disabled={busy || !rows.length || !!errors.length} onClick={async () => {
       setBusy(true); setMessage(''); setSubmitError('')
       try {
-        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows, access_mode: mode, access_until: until, invitation }) })
+        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows, access_mode: mode, access_until: until, invitation, invite_scope: invitation==='none'?'catalog':inviteScope }) })
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Не удалось загрузить сотрудников')
-        if (invitation !== 'none' && result.employee_ids?.length) setInviteResults(await buildInvitationBatches(result.employee_ids, invitation))
+        if (invitation !== 'none' && result.employee_ids?.length) setInviteResults(await buildInvitationBatches(result.employee_ids, invitation,inviteScope))
         setMessage(`Добавлено: ${result.added}. Уже были в реестре: ${result.skipped}.`); setRows([]); router.refresh()
       } catch (e) { setSubmitError(e instanceof Error ? e.message : 'Ошибка загрузки') } finally { setBusy(false) }
     }}>{busy ? 'Обрабатываем…' : 'Добавить сотрудников'}</button>

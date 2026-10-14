@@ -1,4 +1,5 @@
 import 'server-only'
+import type { StoreScope } from '@/lib/store-content'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { createClient } from '@/lib/supabase/server'
 export type InvitationChoice = 'none' | 'email' | 'code'
@@ -7,6 +8,7 @@ export type InvitationResult = {
   employee_id: string
   full_name?: string
   external_id?: string | null
+  store_scope?: string
   channel: string
   url?: string
   expires_at?: string
@@ -24,7 +26,8 @@ export function appOrigin() {
 export async function createInvitations(
   supabase: Awaited<ReturnType<typeof createClient>>,
   ids: string[],
-  channel: 'email' | 'code'
+  channel: 'email' | 'code',
+  scope: StoreScope = 'catalog'
 ) {
   const results: InvitationResult[] = []
   // One database request per invitation; callers issue bounded batches.
@@ -49,17 +52,24 @@ export async function createInvitations(
           employee.external_id || randomBytes(16).toString('hex')
         ),
         p_channel: channel,
+        p_scope: scope,
       })
       if (error) throw new Error(error.message)
       results.push({
         employee_id,
+        store_scope: scope,
         id,
         channel,
         full_name: data.full_name,
         external_id: data.external_id,
         expires_at: data.expires_at,
         ...(channel === 'code'
-          ? { url: appOrigin() + '/invite#' + token }
+          ? {
+              url:
+                appOrigin() +
+                (scope === 'welcome' ? '/welcome/invite#' : '/invite#') +
+                token,
+            }
           : {}),
       })
     } catch (e) {

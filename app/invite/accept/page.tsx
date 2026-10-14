@@ -42,7 +42,7 @@ function AcceptContent() {
           .select('password_set_at')
           .eq('id', user!.id)
           .maybeSingle()
-        router.replace(employee?.password_set_at ? '/catalog' : '/set-password')
+        router.replace(employee?.password_set_at ? (d.next==='/welcome'?'/welcome':'/catalog') : '/set-password')
         router.refresh()
       } catch (e) {
         setError(

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     })
     if (verifyError || !verified.session || !verified.user)
       throw new Error('Не удалось подготовить вход. Повторите попытку.')
-    const { error: claimError } = await service.rpc('claim_invitation', {
+    const { data:claim, error: claimError } = await service.rpc('claim_invitation', {
       p_id: record.id,
       p_user_id: verified.user.id,
       p_code_hash: codeHash,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         'Не удалось сохранить вход. Обратитесь к администратору для нового приглашения.'
       )
     return NextResponse.json(
-      { ok: true, next: '/catalog' },
+      { ok: true, next: claim.next },
       { headers: { 'Cache-Control': 'no-store' } }
     )
   } catch (e) {

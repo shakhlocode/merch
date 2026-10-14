@@ -15,8 +15,7 @@ type AdminShellProps = {
 }
 
 const navItems = [
-  { key:'tasks',href:'/admin/tasks',label:'Задачи',description:'Визиты и напоминания',icon:'◷' },
-  { key:'fulfillment',href:'/admin/fulfillment',label:'Получение',description:'Офисы и сообщения',icon:'⚙' },
+  { key:'interface',href:'/admin/interface',label:'Тексты и настройки',description:'Правила, сообщения, офисы',icon:'⚙' },
   { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование Code 128', icon: '▥' },
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
   { key: 'orders',    href: '/admin/orders',             label: 'Заказы',  description: 'Заявки и статусы', icon: '◇' },
@@ -88,8 +87,7 @@ export default function AdminShell({
         <nav className="admin-nav">
           {navItems.map((item, index) => {
             const active =
-              (item.key === 'tasks' && pathname === '/admin/tasks') ||
-              (item.key === 'fulfillment' && pathname === '/admin/fulfillment') ||
+              (item.key === 'interface' && pathname === '/admin/interface') ||
               (item.key === 'issue' && pathname === '/admin/issue') ||
               (item.key === 'dashboard' && pathname === '/admin') ||
               (item.key === 'orders'    && pathname === '/admin/orders') ||

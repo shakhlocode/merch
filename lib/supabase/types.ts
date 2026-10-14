@@ -112,13 +112,14 @@ export type Database = {
         Relationships: never[]
       }
       employee_invitations: {
-        Row: { id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
+        Row: { store_scope: string; id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
         Insert: never
         Update: { delivery_status?: string; delivery_started_at?: string | null; delivery_error?: string | null }
         Relationships: never[]
       }
       employee_directory: {
         Row: {
+          store_scope: string
           legal_entity: string | null
           id:            string
           email:         string
@@ -138,6 +139,7 @@ export type Database = {
           updated_at:    string
         }
         Insert: {
+          store_scope?: string
           legal_entity?: string | null
           id?:            string
           email:          string
@@ -303,6 +305,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          order_scope: string
           fulfillment_mode: string | null
           legal_entity: string | null
           pickup_office_id: string | null
@@ -348,6 +351,7 @@ export type Database = {
           cancelled_at:     string | null
         }
         Insert: {
+          order_scope?: string
           fulfillment_mode?: string | null
           legal_entity?: string | null
           pickup_office_id?: string | null
@@ -399,6 +403,14 @@ export type Database = {
       }
       merch_settings: {
         Row: {
+          catalog_rules: string
+          welcome_rules: string
+          shipping_message: string
+          visit_message: string
+          welcome_pickup_message: string
+          welcome_shipping_message: string
+          welcome_visit_message: string
+
           pickup_message: string
 
           id:               number
@@ -408,6 +420,14 @@ export type Database = {
           updated_at:       string
         }
         Insert: {
+          catalog_rules?: string
+          welcome_rules?: string
+          shipping_message?: string
+          visit_message?: string
+          welcome_pickup_message?: string
+          welcome_shipping_message?: string
+          welcome_visit_message?: string
+
           pickup_message?: string
 
           id?:               number
@@ -489,7 +509,7 @@ export type Database = {
       }
     }
     Functions: {
-      admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
+      admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string; p_scope?: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
       check_invitation_code: { Args: { p_token_hash: string; p_code_hash: string }; Returns: { ok: boolean; id?: string } }
       claim_invitation: { Args: { p_id: string; p_user_id: string; p_code_hash: string | null }; Returns: { ok: boolean; next: string } }
       has_system_access: { Args: Record<string, never>; Returns: boolean }
@@ -513,9 +533,11 @@ export type Database = {
         Args: { p_order_id: string; p_items: { variant_id: string; qty: number }[]; p_expected_version: number }
         Returns: unknown
       }
+      my_store_scope: { Args: Record<string, never>; Returns: 'catalog' | 'welcome' | null }
+      has_shop_access: { Args: {p_scope:string}; Returns:boolean }
       my_checkout_identity: { Args: Record<string, never>; Returns: { full_name: string; legal_entity: string | null } | null }
       admin_contact_visit: { Args: { p_id: string }; Returns: undefined }
-      create_merch_order_v2: { Args: { p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string } }
+      create_merch_order_v2: { Args: { p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string; order_scope:string } }
       create_merch_order: {
         Args: {
           p_items:            { variant_id: string; qty: number }[]

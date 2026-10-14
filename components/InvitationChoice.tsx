@@ -3,7 +3,11 @@ export type InvitationChoiceValue = 'none' | 'email' | 'code'
 export default function InvitationChoice({
   value,
   onChange,
+  scope = 'catalog',
+  onScope,
 }: {
+  scope?: 'catalog' | 'welcome'
+  onScope?: (scope: 'catalog' | 'welcome') => void
   value: InvitationChoiceValue
   onChange: (value: InvitationChoiceValue) => void
 }) {
@@ -22,10 +26,25 @@ export default function InvitationChoice({
           <option value="code">Личная ссылка + идентификатор</option>
         </select>
       </label>
+      {value !== 'none' && onScope && (
+        <label className="ae-field">
+          Раздел приглашения
+          <select
+            aria-label="Раздел приглашения"
+            className="ae-input"
+            value={scope}
+            onChange={(e) => onScope(e.target.value as 'catalog' | 'welcome')}
+          >
+            <option value="catalog">Каталог — доступ к раздаче</option>
+            <option value="welcome">Только Welcome pack — для новичка</option>
+          </select>
+        </label>
+      )}
       <p className="ae-field-note">
         Приглашение даёт доступ на один заказ. Личная ссылка активируется один
         раз, действует до 7 дней и требует идентификатор сотрудника. Передавайте
-        её лично.
+        её лично. Новое приглашение заменяет прежний доступ к разделу. Для
+        Welcome pack выберите его в разделе приглашения.
       </p>
     </div>
   )

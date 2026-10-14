@@ -16,7 +16,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('employee_invitations')
     .select(
-      'id,employee_directory_id,channel,expires_at,claimed_at,revoked_at,delivery_status,delivery_error'
+      'id,store_scope,employee_directory_id,channel,expires_at,claimed_at,revoked_at,delivery_status,delivery_error'
     )
     .order('created_at', { ascending: false })
     .limit(200)
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       !Array.isArray(body.ids) ||
       !body.ids.length ||
       body.ids.length > 20 ||
-      !['email', 'code'].includes(body.channel)
+      !['email', 'code'].includes(body.channel) || (body.scope!==undefined&&!['catalog','welcome'].includes(body.scope))
     )
       return NextResponse.json(
         { error: 'Укажите до 20 сотрудников и тип приглашения' },
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       )
     return NextResponse.json(
       {
-        invitations: await createInvitations(supabase, body.ids, body.channel),
+        invitations: await createInvitations(supabase, body.ids, body.channel,body.scope||'catalog'),
       },
       { headers: { 'Cache-Control': 'no-store' } }
     )

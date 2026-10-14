@@ -14,6 +14,7 @@ type Payload = {
   full_name?: string
   business_unit?: string | null
   position?: string | null
+  invite_scope?: 'catalog'|'welcome'
   invitation?: 'none' | 'email' | 'code'
   access_mode?: string
   access_until?: string
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as Payload
 
+    if(body.invite_scope!==undefined&&!['catalog','welcome'].includes(body.invite_scope))return NextResponse.json({error:'Выберите раздел приглашения'},{status:400})
+    if(body.invite_scope==='welcome'&&(!body.invitation||body.invitation==='none'))return NextResponse.json({error:'Для Welcome pack нужно создать приглашение'},{status:400})
     if (body.invitation !== undefined && !['none','email','code'].includes(body.invitation)) return NextResponse.json({ error: 'Выберите тип приглашения' }, { status: 400 })
     if (!body.action) {
       return NextResponse.json({ error: 'Не передано действие' }, { status: 400 })
@@ -65,7 +68,7 @@ export async function POST(request: NextRequest) {
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 2000) return NextResponse.json({ error: 'Загрузите от 1 до 2000 строк' }, { status: 400 })
       let policy
       try { policy = accessFields(body.access_mode, body.access_until) } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
-      const { data, error } = await supabase.rpc('admin_import_employees', { p_rows: body.rows.map(row => ({ ...row, ...policy, invite_mode: body.invitation || 'none' })) })
+      const { data, error } = await supabase.rpc('admin_import_employees', { p_rows: body.rows.map(row => ({ ...row, ...policy, invite_mode: body.invitation || 'none',invite_scope:body.invite_scope||'catalog' })) })
       return error ? NextResponse.json({ error: mapError(error.message) }, { status: 400 }) : NextResponse.json({ ok: true, ...data })
     }
 
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
     catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
     const fields = {
       ...policy,
+      ...(body.action==='create_employee'?{store_scope:body.invite_scope||'catalog'}:{}),
       ...(body.action === 'create_employee' && body.invitation && body.invitation !== 'none' ? { invitation_required: true, invitation_one_order: true } : {}),
       ...(body.renew_access === true ? { access_used_at: null } : {}),
       email,
@@ -106,7 +110,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: mapError(error.message) }, { status: 400 })
       }
 
-      return NextResponse.json({ ok: true, employee: data, invitations: body.invitation && body.invitation !== 'none' ? await createInvitations(supabase, [data.id], body.invitation) : [] }, { headers: { 'Cache-Control': 'no-store' } })
+      return NextResponse.json({ ok: true, employee: data, invitations: body.invitation && body.invitation !== 'none' ? await createInvitations(supabase, [data.id], body.invitation,body.invite_scope||'catalog') : [] }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     // update_employee
@@ -125,7 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: mapError(error.message) }, { status: 400 })
     }
 
-    return NextResponse.json({ ok: true, employee: data, invitations: body.invitation && body.invitation !== 'none' ? await createInvitations(supabase, [data.id], body.invitation) : [] }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ ok: true, employee: data, invitations: body.invitation && body.invitation !== 'none' ? await createInvitations(supabase, [data.id], body.invitation,body.invite_scope||'catalog') : [] }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Неизвестная ошибка'
     return NextResponse.json({ error: message }, { status: 500 })

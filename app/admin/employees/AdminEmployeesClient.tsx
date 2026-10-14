@@ -14,6 +14,7 @@ import { getExportDate, toCsv } from '@/lib/utils'
 
 export type DirectoryEmployee = {
   id: string
+  store_scope?: 'catalog'|'welcome'
   legal_entity?: string | null
   email: string
   full_name: string
@@ -93,6 +94,7 @@ export default function AdminEmployeesClient({
       full_name:     e.full_name,
       email:         e.email,
       external_id:   e.external_id || '',
+      store_scope:e.store_scope||'catalog',
       legal_entity:e.legal_entity||'',
       business_unit: e.business_unit || '',
       position:      e.position || '',
@@ -239,7 +241,7 @@ export default function AdminEmployeesClient({
 
                       <div>
                         <span className={`ae-badge${directoryAccessOpen(employee) ? '' : ' ae-badge-off'}`}>
-                          {employee.invitation_required && !employee.invitation_user_id ? 'Ожидает приглашения' : !employee.is_active ? 'Отключён' : (employee.access_mode === 'one_order' || employee.invitation_one_order) ? (employee.access_used_at ? 'Заказ получен · доступ закрыт' : 'До получения заказа') : employee.access_mode === 'until_date' ? `${directoryAccessOpen(employee) ? 'До' : 'Истёк'} ${formatDate(accessUntil(employee.access_expires_at))}` : 'Бессрочный'}
+                          {employee.store_scope==='welcome'?'Welcome pack · ':''}{employee.invitation_required && !employee.invitation_user_id ? 'Ожидает приглашения' : !employee.is_active ? 'Отключён' : (employee.access_mode === 'one_order' || employee.invitation_one_order) ? (employee.access_used_at ? 'Заказ получен · доступ закрыт' : 'До получения заказа') : employee.access_mode === 'until_date' ? `${directoryAccessOpen(employee) ? 'До' : 'Истёк'} ${formatDate(accessUntil(employee.access_expires_at))}` : 'Бессрочный'}
                         </span>
                       </div>
 
@@ -287,6 +289,7 @@ function EmployeeEditor({
   const [legalEntity,setLegalEntity]=useState(employee?.legal_entity??'')
   const [fullName, setFullName] = useState(employee?.full_name ?? '')
   const [email,    setEmail]    = useState(employee?.email?.endsWith('.merch.invalid') ? '' : employee?.email ?? '')
+  const [inviteScope,setInviteScope]=useState<'catalog'|'welcome'>(employee?.store_scope||'catalog')
   const [invitation, setInvitation] = useState<InvitationChoiceValue>('none')
   const [externalId, setExternalId] = useState(employee?.external_id ?? '')
 
@@ -311,6 +314,7 @@ function EmployeeEditor({
           email: !isCreate && employee?.email?.endsWith('.merch.invalid') ? employee.email : email,
           external_id: externalId,
           invitation,
+          invite_scope:invitation==='none'?undefined:inviteScope,
           access_mode: accessMode,
           access_until: accessDate,
           renew_access: renew,
@@ -365,7 +369,7 @@ function EmployeeEditor({
       </div>
 
       <label className="ae-field">Юридическое лицо · необязательно<input className="ae-input" value={legalEntity} onChange={e=>setLegalEntity(e.target.value)} maxLength={250}/></label>
-      <InvitationChoice value={invitation} onChange={setInvitation} />
+      <InvitationChoice value={invitation} onChange={setInvitation} scope={inviteScope} onScope={setInviteScope} />
       <EmployeeAccessFields mode={accessMode} until={accessDate} onMode={setAccessMode} onUntil={setAccessDate} />
       {employee?.access_used_at && <p>Разовый доступ использован. При необходимости можно выдать его повторно.</p>}
       {error && <div className="ae-error">{error}</div>}

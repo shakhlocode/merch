@@ -34,7 +34,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       redirect('/set-password')
     }
 
-    redirect('/catalog')
+    const {data:scope}=await supabase.rpc('my_store_scope',{})
+    redirect(scope==='welcome'?'/welcome':'/catalog')
   }
 
   redirect('/login')

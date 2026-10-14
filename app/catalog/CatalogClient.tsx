@@ -2,6 +2,7 @@
 
 import FulfillmentForm from '@/components/FulfillmentForm'
 import OrderBarcode from '@/components/OrderBarcode'
+import {defaultStoreContent,type StoreScope} from '@/lib/store-content'
 import type { PickupDetails,PickupOffice } from '@/lib/fulfillment'
 import AppNav from '@/components/AppNav'
 import ProductImage from '@/components/ProductImage'
@@ -57,6 +58,8 @@ type MerchAccess = {
 }
 
 type CatalogClientProps = {
+  scope?:StoreScope
+  rules?:string
   offices: PickupOffice[]
   identity: {full_name:string|null;legal_entity:string|null}
   products: CatalogProduct[]
@@ -79,6 +82,7 @@ const MAX_UNIQUE_PRODUCTS = 3
 
 export default function CatalogClient({
   products,
+  scope='catalog',rules=defaultStoreContent.catalog_rules,
   offices, identity,
   userEmail,
   userName,
@@ -187,6 +191,7 @@ export default function CatalogClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          shop_scope:scope,
           items:            cart.map(item => ({ variant_id: item.variant.id, qty: 1 })),
           fulfillment_mode: pickup.mode,
           pickup_office_id: pickup.mode==='remote_shipping'?null:pickup.officeId,
@@ -226,7 +231,7 @@ export default function CatalogClient({
         <div className="site-head-glass" aria-hidden="true" />
         <div className="head-inner">
 
-          <a href="/catalog" className="brand">
+          <a href={scope==='welcome'?'/welcome':'/catalog'} className="brand">
             <span className="brand-mark">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/uzum-big-logo.webp" alt="Uzum" />
@@ -236,7 +241,7 @@ export default function CatalogClient({
             </span>
           </a>
 
-          <AppNav isAdmin={isAdmin} />
+          <AppNav storeScope={scope} isAdmin={isAdmin} />
 
           <div className="head-side">
             {totalQty > 0 && (
@@ -269,7 +274,7 @@ export default function CatalogClient({
       {/* ── CATALOG BODY ────────────────────────────────────────────────── */}
       <div className="catalog">
 
-        <h1 className="sr-only">Каталог Uzum Merch Shop</h1>
+        <h1 className={scope==='welcome'?'shop-heading':'sr-only'}>{scope==='welcome'?'Welcome pack':'Каталог Uzum Merch Shop'}</h1>
         {/* Filters, products and cart */}
         <div className="catalog-body">
 
@@ -304,12 +309,7 @@ export default function CatalogClient({
 
             <details className="filters-note catalog-rules" open>
               <summary className="kicker">Правила</summary>
-              <ol>
-                <li>До 3 уникальных товаров.</li>
-                <li>По 1 штуке каждого товара.</li>
-                <li>Один товар — один размер и цвет.</li>
-                <li>Получение — в офисе. Для удалённых сотрудников — по согласованию.</li>
-              </ol>
+              <ol>{rules.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}</ol>
             </details>
             {!merchAccess.isAllowed && <div className="form-error" role="status">{getMerchAccessMessage(merchAccess)}</div>}
           </aside>
@@ -651,12 +651,14 @@ function getCheckoutErrorMessage(error: string): string {
     return 'Мерч доступен сотрудникам, отработавшим больше 3 месяцев.'
   if (error.includes('employee_not_in_directory') || error.includes('employee_inactive'))
     return 'Ваш доступ к мерчу не найден в HR-реестре. Обратитесь к HR или администратору.'
+  if (error.includes('product_scope_not_allowed'))return 'Этот товар недоступен в вашем разделе. Обновите страницу.'
   if (error.includes('product_is_not_available'))
     return 'Один из выбранных товаров сейчас недоступен для заказа.'
   return error || 'Не удалось оформить заказ'
 }
 
 function getMerchAccessMessage(access: MerchAccess) {
+  if(access.reason==='scope_not_allowed')return 'Оформление в этом разделе доступно после персонального приглашения.'
   if (access.reason === 'employee_tenure_too_short') {
     return 'Мерч доступен сотрудникам, отработавшим больше 3 месяцев.'
   }

@@ -1,6 +1,9 @@
 'use client'
 
 import {fulfillmentLabel} from '@/lib/fulfillment'
+import {orderAction,type VisitReminder} from '@/lib/order-attention'
+import {tashkentToday} from '@/lib/fulfillment'
+import OrderNextAction from '@/components/OrderNextAction'
 import AdminShell from '@/components/AdminShell'
 import OrderBarcode from '@/components/OrderBarcode'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -33,6 +36,7 @@ export type AdminOrderItem = {
 
 export type AdminOrder = {
   id: string
+  order_scope:string
   order_number: string
   pickup_code: string | null
   version: number
@@ -70,6 +74,7 @@ export type AdminOrder = {
 }
 
 type AdminOrdersClientProps = {
+  tasks?: VisitReminder[]
   orders: AdminOrder[]
   adminEmail: string
   stockAlertCount: number
@@ -114,10 +119,14 @@ const statusOptions: OrderStatus[] = [
 export default function AdminOrdersClient({
   orders,
   adminEmail,
-  stockAlertCount, variants, admins, events,
+  stockAlertCount, variants, admins, events,tasks=[],
 }: AdminOrdersClientProps) {
   const searchParams = useSearchParams()
   const queryFromUrl = searchParams.get('q') ?? ''
+  const workFromUrl=searchParams.get('work')||'all'
+  const [workFilter,setWorkFilter]=useState(workFromUrl)
+  const [scopeFilter,setScopeFilter]=useState('all')
+  useEffect(()=>setWorkFilter(workFromUrl),[workFromUrl])
 
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [search, setSearch] = useState(queryFromUrl)
@@ -179,7 +188,9 @@ export default function AdminOrdersClient({
         order.delivery_address?.toLowerCase().includes(searchValue) ||
         itemsMatch
 
-      return statusMatch && searchMatch
+      const task=tasks.find(t=>t.order_id===order.id),today=tashkentToday()
+      const workMatch=workFilter==='all'||(workFilter==='attention'&&orderAction(order,task,today).needsAction)||(workFilter==='prepare'&&['new','review','confirmed','assembling'].includes(order.status))||(workFilter==='arrivals'&&!!task&&((task.due_on<=today&&!task.contacted_at)||task.reserve_until<today))
+      return statusMatch && searchMatch && workMatch && (scopeFilter==='all'||order.order_scope===scopeFilter)
     })
 
     return [...result].sort((a, b) => {
@@ -191,7 +202,7 @@ export default function AdminOrdersClient({
         return b.order_number.localeCompare(a.order_number, 'ru', { numeric: true })
       return a.order_number.localeCompare(b.order_number, 'ru', { numeric: true })
     })
-  }, [orders, search, sortMode, statusFilter])
+  }, [orders, search, sortMode, statusFilter,workFilter,scopeFilter,tasks])
 
   function handleExportCsv() {
     const rows = filteredOrders.map((order) => {
@@ -203,6 +214,8 @@ export default function AdminOrdersClient({
 
       return {
         order_number:     order.order_number,
+        order_scope:order.order_scope,
+        next_action:orderAction(order,tasks.find(t=>t.order_id===order.id)).label,
         status:           statusLabels[order.status],
         created_at:       formatDateTime(order.created_at),
         full_name:        order.full_name || '',
@@ -274,6 +287,8 @@ export default function AdminOrdersClient({
           </div>
 
           <div className="ao-toolbar-right">
+            <label className="ao-sort-label">Действие<select className="ao-sort-select" value={workFilter} onChange={e=>setWorkFilter(e.target.value)}><option value="all">Все заказы</option><option value="attention">Требуют внимания</option><option value="prepare">Подготовить и упаковать</option><option value="arrivals">Связаться с приезжающими</option></select></label>
+            <label className="ao-sort-label">Раздел<select className="ao-sort-select" value={scopeFilter} onChange={e=>setScopeFilter(e.target.value)}><option value="all">Все разделы</option><option value="catalog">Каталог</option><option value="welcome">Welcome pack</option></select></label>
             <label className="ao-sort-label">
               Сортировка:
               <select
@@ -393,7 +408,7 @@ export default function AdminOrdersClient({
                       <div>
                         <span className={getStatusBadgeClass(order.status)}>
                           {statusLabels[order.status]}
-                        </span>
+                        </span><small className="ao-action-note">{orderAction(order,tasks.find(t=>t.order_id===order.id)).label}</small>
                       </div>
 
                       <div className="ao-arrow-cell">
@@ -401,7 +416,7 @@ export default function AdminOrdersClient({
                       </div>
                     </button>
 
-                    {isExpanded && <OrderDetail key={`${order.id}-${order.version}`} order={order} variants={variants} admins={admins} events={events.filter(e => e.order_id === order.id)} />}
+                    {isExpanded && <OrderDetail key={`${order.id}-${order.version}`} order={order} task={tasks.find(t=>t.order_id===order.id)} variants={variants} admins={admins} events={events.filter(e => e.order_id === order.id)} />}
                   </div>
                 )
               })}
@@ -456,7 +471,7 @@ function StatusTabs({
 /*  OrderDetail                                                                 */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; variants: EditableVariant[]; admins: AdminOrdersClientProps['admins']; events: AdminOrdersClientProps['events'] }) {
+function OrderDetail({ order, variants, admins, events,task }: { task?:VisitReminder; order: AdminOrder; variants: EditableVariant[]; admins: AdminOrdersClientProps['admins']; events: AdminOrdersClientProps['events'] }) {
   const router = useRouter()
 
   const [status, setStatus] = useState<OrderStatus>(order.status)
@@ -553,6 +568,7 @@ function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; v
 
   return (
     <section className="ao-detail-panel">
+      <OrderNextAction orderId={order.id} status={order.status} remote={order.is_remote} task={task}/>
       <div className="ao-detail-grid">
 
         {/* Получатель */}
@@ -561,6 +577,7 @@ function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; v
             <h3 className="ao-card-title">Получатель</h3>
           </div>
           <div className="ao-info-grid">
+            <Info label="Раздел" value={order.order_scope==='welcome'?'Welcome pack':'Каталог'}/>
             <Info label="ФИО"      value={order.full_name || 'Не указан'} />
             <Info label="Email"    value={order.email || 'Не указан'} />
             <Info label="Телефон"  value={order.phone || 'Не указан'} />
@@ -570,7 +587,7 @@ function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; v
             <Info label="Адрес"    value={order.delivery_address || 'Не указан'} />
             <Info label="Формат"   value={fulfillmentLabel(order.fulfillment_mode,order.is_remote)} />
             {order.is_remote && <><Info label="Страна" value={order.country || 'Не указана'} /><Info label="Город" value={order.city || 'Не указан'} /></>}
-            {order.fulfillment_mode==='remote_visit'&&<><Info label="Приезд" value={order.visit_from||'—'}/><Info label="Отъезд" value={order.visit_until||'—'}/><Link href="/admin/tasks">Задача по визиту →</Link></>}
+            {order.fulfillment_mode==='remote_visit'&&<><Info label="Приезд" value={order.visit_from||'—'}/><Info label="Отъезд" value={order.visit_until||'—'}/><span>Напоминание и действия — в этом заказе.</span></>}
           </div>
           {order.comment && (
             <div className="ao-note-box">
@@ -624,7 +641,7 @@ function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; v
       {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {order.remote_contact_name || 'Назначьте администратора ниже'}. Штрихкод не выдаётся.</p>}
       {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
       {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
-      <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
+      <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants.filter(v=>!v.placement||v.placement==='both'||v.placement===order.order_scope||order.order_items.some(i=>i.variant_id===v.id))} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
       <details className="order-items-editor"><summary>Последние события заказа</summary>
         {events.map(e => <p key={e.id}>{formatDateTime(e.created_at)} · {{ created: 'Создан', updated: 'Изменён', issued: 'Выдали', items_changed: 'Изменён состав' }[e.action] || e.action}</p>)}
       </details>

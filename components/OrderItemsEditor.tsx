@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export type EditableVariant = { id: string; product_id: string; label: string; available_qty: number }
+export type EditableVariant = { id: string; product_id: string; placement?: string; label: string; available_qty: number }
 
 export default function OrderItemsEditor({ orderId, version, initialIds, variants, locked }: {
   orderId: string; version: number; initialIds: string[]; variants: EditableVariant[]; locked: boolean

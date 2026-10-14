@@ -4107,3 +4107,9 @@ input:focus, select:focus, textarea:focus {
 .cart-review .cart-line-info {overflow-wrap:anywhere}
 .cart-line-remove:disabled {opacity:.5;cursor:default}
 #cart-aside {scroll-margin-top:100px}
+
+.shop-heading {font-size:28px;margin:0 0 22px;letter-spacing:-.7px}
+.settings-tabs {display:flex;flex-wrap:wrap;gap:10px}.settings-tabs [aria-pressed=true] {background:#7000ff;color:white}
+.ao-toolbar-right {flex-wrap:wrap;min-width:0}.ao-sort-select {max-width:100%}.ao-action-note {display:block;font-size:11px;line-height:1.4;margin-top:6px;color:var(--inkMute);white-space:normal}
+.order-next-action {display:grid;gap:10px;padding:20px;border-radius:18px;background:#f3edff;margin-bottom:18px;overflow-wrap:anywhere}.order-next-action h3,.order-next-action p {margin:0;line-height:1.5}.order-next-action button {width:fit-content}
+.dash-kpi-link {text-decoration:none;color:inherit;min-width:0}.dash-kpi-link .dash-kpi {height:100%;box-sizing:border-box}

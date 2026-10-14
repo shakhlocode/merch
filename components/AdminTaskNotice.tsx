@@ -21,7 +21,7 @@ export default function AdminTaskNotice() {
     }
   }, [])
   return counts.due || counts.overdue ? (
-    <a href="/admin/tasks" className="admin-task-notice" role="status">
+    <a href="/admin/orders?work=arrivals" className="admin-task-notice" role="status">
       {counts.due > 0 && (
         <span>Свяжитесь с приезжающими сотрудниками: {counts.due}. </span>
       )}
@@ -30,7 +30,7 @@ export default function AdminTaskNotice() {
           Срок визита истёк у {counts.overdue} заказов — проверьте резерв.{' '}
         </span>
       )}
-      Открыть задачи →
+      Открыть заказы →
     </a>
   ) : null
 }

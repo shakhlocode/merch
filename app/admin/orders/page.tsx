@@ -61,6 +61,7 @@ export default async function AdminOrdersPage() {
       `
       id,
       order_number,
+      order_scope,
       fulfillment_mode,legal_entity,pickup_office_name,visit_from,visit_until,
       pickup_code,
       version,
@@ -139,14 +140,15 @@ export default async function AdminOrdersPage() {
     )
   }
 
-  const [{ data: variantRows }, { data: admins }, { data: events }] = await Promise.all([
-    supabase.from('product_variants').select('id,product_id,size,color,sku,total_qty,reserved_qty,is_active,products(name,is_active)'),
+  const [{ data: variantRows }, { data: admins }, { data: events }, {data:tasks}] = await Promise.all([
+    supabase.from('product_variants').select('id,product_id,size,color,sku,total_qty,reserved_qty,is_active,products(name,is_active,placement)'),
     supabase.from('employees').select('id,full_name').eq('is_admin', true).eq('is_active', true),
     supabase.from('order_events').select('id,order_id,action,data,created_at').order('created_at', { ascending: false }).limit(200),
+    supabase.from('order_tasks').select('id,order_id,due_on,reserve_until,contacted_at').is('closed_at',null),
   ])
   const variants: EditableVariant[] = (variantRows ?? []).map(v => {
     const product = Array.isArray(v.products) ? v.products[0] : v.products
-    return { id: v.id, product_id: v.product_id,
+    return { id: v.id, product_id: v.product_id,placement:product?.placement,
       label: [product?.name, v.size, v.color, v.sku].filter(Boolean).join(' · '),
       available_qty: v.is_active && product?.is_active ? Math.max(0, v.total_qty-v.reserved_qty) : 0 }
   })
@@ -157,6 +159,7 @@ export default async function AdminOrdersPage() {
       adminEmail={user.email ?? ''}
       stockAlertCount={stockAlertCount}
       variants={variants}
+      tasks={tasks||[]}
       admins={admins ?? []}
       events={events ?? []}
     />

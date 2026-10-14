@@ -80,7 +80,7 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
             город и офис будут автоматически подставляться в корзину.
           </p>
           <div className="profile-hero-actions">
-            <a href="/catalog" className="btn btn-accent btn-md">Перейти в каталог</a>
+            <a href="/" className="btn btn-accent btn-md">Выбрать мерч</a>
             <a href="/orders"  className="btn btn-ghost  btn-md">Мои заказы</a>
           </div>
         </div>

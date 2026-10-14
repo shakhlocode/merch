@@ -1,7 +1,9 @@
 'use client'
 import Image from 'next/image'
+import {usePathname} from 'next/navigation'
 import { useEffect, useState } from 'react'
 export default function InvitePage() {
+  const isWelcome=usePathname().startsWith('/welcome/')
   const [token, setToken] = useState(''),
     [identifier, setIdentifier] = useState(''),
     [busy, setBusy] = useState(false),
@@ -20,7 +22,7 @@ export default function InvitePage() {
             alt="Uzum"
           />
           <h1 className="login-card-title">
-            Добро пожаловать в Uzum Merch Shop
+            {isWelcome?'Ваш Welcome pack':'Добро пожаловать в Uzum Merch Shop'}
           </h1>
           <p>
             Введите свой идентификатор. Приглашение можно активировать только
@@ -40,7 +42,7 @@ export default function InvitePage() {
                 })
                 const d = await r.json()
                 if (!r.ok) throw new Error(d.error)
-                window.location.replace('/catalog')
+                window.location.replace(d.next==='/welcome'?'/welcome':'/catalog')
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Ошибка входа')
               } finally {

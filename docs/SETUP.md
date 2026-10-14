@@ -172,3 +172,5 @@ Auth/Storage; сами таблицы приложения, SQL-функции �
 Настройка серверного ключа, личных и почтовых приглашений: [INVITATIONS.md](INVITATIONS.md).
 
 Офисы, оформление и задачи приезжающих сотрудников: [FULFILLMENT.md](FULFILLMENT.md).
+
+Раздельный доступ к каталогу и Welcome pack, редактор текстов и работа с задачами: [STORE-SCOPES.md](STORE-SCOPES.md).

@@ -28,6 +28,7 @@ export default function InvitationResults({
                 .map((i) => ({
                   full_name: i.full_name || '',
                   identifier: i.external_id || '',
+          store_scope:i.store_scope||'catalog',
                   link: i.url!,
                   expires_at: i.expires_at || '',
                 }))
@@ -48,7 +49,7 @@ export default function InvitationResults({
       <ul className="invite-results">
         {items.map((item, index) => (
           <li key={item.id || index}>
-            <strong>{item.full_name || item.employee_id}</strong>
+            <strong>{item.full_name || item.employee_id}</strong><span> · {item.store_scope==='welcome'?'Welcome pack':'Каталог'}</span>
             {item.error ? (
               <p role="alert">{item.error}</p>
             ) : item.url ? (

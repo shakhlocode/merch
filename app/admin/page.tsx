@@ -1,3 +1,4 @@
+import {orderAction} from '@/lib/order-attention'
 import AdminShell from '@/components/AdminShell'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
@@ -21,6 +22,7 @@ type AdminDashOrder = {
   order_number: string
   employee_id: string
   status: OrderStatus
+  is_remote:boolean
   full_name: string | null
   email: string | null
   department: string | null
@@ -76,11 +78,11 @@ export default async function AdminDashboardPage() {
 
   if (!employee?.is_admin) redirect('/catalog')
 
-  const [{ data: ordersData }, { data: productsData }] = await Promise.all([
+  const [{ data: ordersData }, { data: productsData }, {data:tasks}] = await Promise.all([
     supabase
       .from('orders')
       .select(`
-        id, order_number, employee_id, status, full_name, email, department, created_at,
+        id, order_number, employee_id, status, is_remote, full_name, email, department, created_at,
         order_items ( id, product_name, size, color, sku, qty )
       `)
       .order('created_at', { ascending: false }),
@@ -92,6 +94,7 @@ export default async function AdminDashboardPage() {
         product_variants ( id, size, color, sku, total_qty, reserved_qty, is_active )
       `)
       .order('created_at', { ascending: false }),
+    supabase.from('order_tasks').select('id,order_id,due_on,reserve_until,contacted_at').is('closed_at',null),
   ])
 
   const orders   = ((ordersData   ?? []) as unknown) as AdminDashOrder[]
@@ -105,7 +108,7 @@ export default async function AdminDashboardPage() {
   weekAgo.setDate(weekAgo.getDate() - 7)
   const newThisWeek = orders.filter(o => new Date(o.created_at) >= weekAgo)
 
-  const uniqueEmployees = new Set(orders.map(o => o.employee_id)).size
+  const attentionCount=orders.filter(o=>orderAction(o,tasks?.find(t=>t.order_id===o.id)).needsAction).length
 
   const lowStockVariants = products.flatMap(product =>
     product.product_variants
@@ -142,7 +145,7 @@ export default async function AdminDashboardPage() {
         <KpiCard tone="primary"  label="Активных заказов"        value={String(activeOrders.length)}     hint={`из ${orders.length} всего`} />
         <KpiCard tone="default"  label="Новые за неделю"         value={String(newThisWeek.length)}      hint="заявки за последние 7 дней" />
         <KpiCard tone="danger"   label="Позиций в дефиците"      value={String(lowStockVariants.length)} hint="≤ 4 шт. доступно" />
-        <KpiCard tone="default"  label="Сотрудников с заказами"  value={String(uniqueEmployees)}         hint="уникальных получателей" />
+        <a href="/admin/orders?work=attention" className="dash-kpi-link"><KpiCard tone="default" label="Требуют внимания" value={String(attentionCount)} hint="подготовить, связаться или выдать →"/></a>
       </section>
 
       {/* ── Dashboard 2×2 ── */}

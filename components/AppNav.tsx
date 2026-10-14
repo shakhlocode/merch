@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 type AppNavProps = {
+  storeScope?: 'catalog'|'welcome'
   isAdmin?: boolean
   /** When true, renders a "Выйти" button alongside the nav links (default: false). */
   showLogout?: boolean
@@ -19,7 +20,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: '/catalog',         label: 'Каталог'      },
   { href: '/orders',          label: 'Мои заказы'   },
-  { href: '/welcome',         label: 'Welcome-pack' },
+  { href: '/welcome',         label: 'Welcome pack' },
   { href: '/profile',         label: 'Профиль'      },
   { href: '/admin/orders',    label: 'Заказы',     adminOnly: true },
   { href: '/admin/products',  label: 'Товары',     adminOnly: true },
@@ -32,10 +33,13 @@ const adminItems = navItems.filter(item => item.adminOnly)
 const MENU_WIDTH = 208
 
 export default function AppNav({
+  storeScope,
   isAdmin    = false,
   showLogout = false,
 }: AppNavProps) {
   const pathname = usePathname()
+  const [scope,setScope]=useState<'catalog'|'welcome'|null>(storeScope??null)
+  useEffect(()=>{if(storeScope){setScope(storeScope);return}let stop=false;fetch('/api/access',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(!stop&&d.allowed)setScope(d.scope==='welcome'?'welcome':'catalog')}).catch(()=>{});return()=>{stop=true}},[storeScope])
   const [loggingOut, setLoggingOut] = useState(false)
   const [adminOpen,  setAdminOpen]  = useState(false)
   const [menuPos,    setMenuPos]    = useState<{ top: number; left: number } | null>(null)
@@ -106,7 +110,7 @@ export default function AppNav({
 
   return (
     <nav className="head-nav">
-      {baseItems.map(item => (
+      {baseItems.filter(item=>(item.href!=='/catalog'||scope==='catalog')&&(item.href!=='/welcome'||scope==='welcome')).map(item => (
         <Link
           key={item.href}
           href={item.href}

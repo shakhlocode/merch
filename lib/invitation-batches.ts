@@ -1,7 +1,9 @@
+import type { StoreScope } from '@/lib/store-content'
 import type { InvitationResult } from '@/lib/invitations'
 export async function buildInvitationBatches(
   ids: string[],
-  channel: 'email' | 'code'
+  channel: 'email' | 'code',
+  scope: StoreScope = 'catalog'
 ) {
   const results: InvitationResult[] = []
   for (let i = 0; i < ids.length; i += 20) {
@@ -13,6 +15,7 @@ export async function buildInvitationBatches(
           action: 'create',
           ids: ids.slice(i, i + 20),
           channel,
+          scope,
         }),
       })
       const data = await response.json()
@@ -21,13 +24,11 @@ export async function buildInvitationBatches(
       results.push(...data.invitations)
     } catch (e) {
       results.push(
-        ...ids
-          .slice(i, i + 20)
-          .map((employee_id) => ({
-            employee_id,
-            channel,
-            error: e instanceof Error ? e.message : 'Ошибка',
-          }))
+        ...ids.slice(i, i + 20).map((employee_id) => ({
+          employee_id,
+          channel,
+          error: e instanceof Error ? e.message : 'Ошибка',
+        }))
       )
     }
   }

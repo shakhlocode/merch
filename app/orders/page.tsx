@@ -1,3 +1,4 @@
+import {defaultStoreContent,orderMessage} from '@/lib/store-content'
 import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
@@ -26,6 +27,7 @@ type OrderItem = {
 type Order = {
   id: string
   order_number: string
+  order_scope:string
   fulfillment_mode: string|null
   legal_entity: string|null
   visit_from:string|null
@@ -108,7 +110,7 @@ export default async function OrdersPage() {
   const { data: rawOrders, error } = await supabase
     .from('orders')
     .select(`
-      id, order_number, fulfillment_mode, legal_entity, visit_from, visit_until, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
+      id, order_number, order_scope, fulfillment_mode, legal_entity, visit_from, visit_until, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
       full_name, phone, email, city, department,
       comment, admin_comment, tracking_number,
       created_at, confirmed_at, shipped_at, received_at, cancelled_at,
@@ -119,7 +121,7 @@ export default async function OrdersPage() {
 
   const { data: settings } = await supabase
     .from('merch_settings')
-    .select('pickup_message')
+    .select('*')
     .eq('id', 1)
     .maybeSingle()
 
@@ -135,7 +137,7 @@ export default async function OrdersPage() {
             <div className="empty-mark">!</div>
             <h1 className="section-title">Не удалось загрузить заказы</h1>
             <p>{error.message}</p>
-            <Link href="/catalog" className="btn btn-accent btn-md">Вернуться в каталог</Link>
+            <Link href="/" className="btn btn-accent btn-md">Вернуться к выбору</Link>
           </div>
         </div>
       </div>
@@ -164,7 +166,7 @@ export default async function OrdersPage() {
               Ваши заявки на корпоративный мерч, текущий статус обработки и детали получения.
             </p>
           </div>
-          <Link href="/catalog" className="btn btn-ghost btn-md">
+          <Link href="/" className="btn btn-ghost btn-md">
             ← В каталог
           </Link>
         </header>
@@ -184,12 +186,12 @@ export default async function OrdersPage() {
             <p>
               Перейдите в каталог, выберите мерч и оформите первую заявку.
             </p>
-            <Link href="/catalog" className="btn btn-accent btn-md">Перейти в каталог</Link>
+            <Link href="/" className="btn btn-accent btn-md">Выбрать мерч</Link>
           </div>
         ) : (
           <div className="orders-list">
             {orders.map(order => (
-              <OrderCard key={order.id} order={order} message={settings?.pickup_message||DEFAULT_PICKUP_MESSAGE} />
+              <OrderCard key={order.id} order={order} message={orderMessage(settings||defaultStoreContent,order.order_scope,order.fulfillment_mode,order.is_remote)||DEFAULT_PICKUP_MESSAGE} />
             ))}
           </div>
         )}
@@ -208,7 +210,7 @@ function PageHeader({ isAdmin }: { isAdmin: boolean }) {
     <header className="site-head">
       <div className="site-head-glass" aria-hidden="true" />
       <div className="head-inner">
-        <Link href="/catalog" className="brand">
+        <Link href="/" className="brand">
           <span className="brand-mark">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/uzum-big-logo.webp" alt="Uzum" />
@@ -256,7 +258,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
       {/* ── Top: number + date + status pill ── */}
       <div className="order-top">
         <div className="order-meta">
-          <span className="order-id">#{order.order_number}</span>
+          <span className="order-id">#{order.order_number}</span><span>{order.order_scope==='welcome'?'Welcome pack':'Каталог'}</span>
           <span className="order-date">Оформлен {formatDateShort(order.created_at)}</span>
           {order.tracking_number && (
             <span className="order-track">Трек: {order.tracking_number}</span>
@@ -342,7 +344,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
       )}
 
       {order.is_remote && !isRejected && <div className="order-pickup">
-        <p>Ваш заказ принят. {order.remote_contact_name ? `${order.remote_contact_name} свяжется с вами` : 'Ответственный сотрудник свяжется с вами'} и сообщит, как получить мерч, включая трек-номер при отправке. Штрихкод для офисной выдачи не нужен.</p>
+        <p className="pickup-message">{message}</p>{order.remote_contact_name&&<p>Ответственный: {order.remote_contact_name}.</p>}
       </div>}
       {order.fulfillment_mode==='remote_visit'&&<p>Ваш визит в Ташкент: с {order.visit_from} по {order.visit_until}.{!isRejected&&!isReceived?' Мерч зарезервирован, администратор свяжется с вами.':''}</p>}
       {!isRejected&&!order.is_remote&&!isReceived&&<p className="pickup-message">{message}</p>}

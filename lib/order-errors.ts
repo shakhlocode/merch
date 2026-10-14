@@ -10,6 +10,7 @@ const messages: Record<string, string> = {
   order_items_locked: 'Состав отправленного, выданного или отменённого заказа изменить нельзя.',
   terminal_order_cannot_reopen: 'Завершённый или отменённый заказ нельзя открыть повторно.',
   shipped_order_cannot_reopen: 'Отправленный заказ нельзя вернуть на сборку.',
+  product_scope_not_allowed: 'Этот товар относится к другому разделу. Выберите позицию для каталога или Welcome pack этого заказа.',
   product_is_not_available: 'Товар отключён либо свободного остатка недостаточно.',
   one_variant_per_product_only: 'Выберите по одному варианту разных товаров.',
   one_unit_per_product_only: 'Можно выбрать только одну единицу каждого товара.',

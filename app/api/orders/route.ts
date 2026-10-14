@@ -7,6 +7,7 @@ type CheckoutItem = {
 }
 
 type CheckoutPayload = {
+  shop_scope?: string
   items: CheckoutItem[]
   fulfillment_mode?: string
   pickup_office_id?: string
@@ -91,6 +92,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+
+    const {data:scope}=await supabase.rpc('my_store_scope',{})
+    if(body.shop_scope!==undefined&&body.shop_scope!==scope)return NextResponse.json({error:'Доступ к разделу изменился. Обновите страницу.'},{status:403})
 
     const variantIds = items.map((item) => item.variant_id)
     const { data: variants, error: variantsError } = await supabase

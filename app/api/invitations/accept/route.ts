@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   if (typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/.test(body.id))
     return NextResponse.json({ error: 'Неверное приглашение' }, { status: 400 })
   const service = privilegedClient()
-  const { error } = await service.rpc('claim_invitation', {
+  const { data:claim,error } = await service.rpc('claim_invitation', {
     p_id: body.id,
     p_user_id: user.id,
     p_code_hash: null,
@@ -28,5 +28,5 @@ export async function POST(request: NextRequest) {
       },
       { status: 409 }
     )
-  return NextResponse.json({ ok: true, next: '/catalog' })
+  return NextResponse.json({ ok: true, next: claim.next })
 }

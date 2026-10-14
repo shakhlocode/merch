@@ -57,7 +57,7 @@ export default async function ProfilePage() {
       <header className="site-head">
         <div className="site-head-glass" aria-hidden="true" />
         <div className="head-inner">
-          <a href="/catalog" className="brand">
+          <a href="/" className="brand">
             <span className="brand-mark">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/uzum-big-logo.webp" alt="Uzum" />
