@@ -1,5 +1,6 @@
 'use client'
 
+import {fulfillmentLabel} from '@/lib/fulfillment'
 import AdminShell from '@/components/AdminShell'
 import OrderBarcode from '@/components/OrderBarcode'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -53,6 +54,11 @@ export type AdminOrder = {
   storage_location: string | null
   pickup_status: string
   handed_to: string | null
+  fulfillment_mode:string|null
+  legal_entity:string|null
+  pickup_office_name:string|null
+  visit_from:string|null
+  visit_until:string|null
   is_remote: boolean
   country: string | null
   created_at: string
@@ -169,6 +175,7 @@ export default function AdminOrdersClient({
         order.email?.toLowerCase().includes(searchValue) ||
         order.phone?.toLowerCase().includes(searchValue) ||
         order.department?.toLowerCase().includes(searchValue) ||
+        order.legal_entity?.toLowerCase().includes(searchValue) ||
         order.delivery_address?.toLowerCase().includes(searchValue) ||
         itemsMatch
 
@@ -210,6 +217,9 @@ export default function AdminOrdersClient({
         items_qty:        String(getTotalQty(order)),
         items:            itemsText,
         comment:          order.comment || '',
+        fulfillment_mode:fulfillmentLabel(order.fulfillment_mode,order.is_remote),
+        legal_entity:order.legal_entity||'',
+        visit_from:order.visit_from||'',visit_until:order.visit_until||'',
         admin_comment:    order.admin_comment || '',
         tracking_number:  order.tracking_number || '',
       }
@@ -373,7 +383,7 @@ export default function AdminOrdersClient({
                       </div>
 
                       <div className="ao-delivery-cell">
-                        {order.is_remote ? 'Удалённый заказ' : 'В офисе'}
+                        {fulfillmentLabel(order.fulfillment_mode,order.is_remote)}
                       </div>
 
                       <div className="ao-date-cell">
@@ -554,11 +564,13 @@ function OrderDetail({ order, variants, admins, events }: { order: AdminOrder; v
             <Info label="ФИО"      value={order.full_name || 'Не указан'} />
             <Info label="Email"    value={order.email || 'Не указан'} />
             <Info label="Телефон"  value={order.phone || 'Не указан'} />
+            <Info label="Юрлицо" value={order.legal_entity||'Не указано в реестре'} />
             <Info label="Отдел"    value={order.department || 'Не указан'} />
             <Info label="Доставка" value={deliveryLabels[order.delivery_type] ?? order.delivery_type} />
             <Info label="Адрес"    value={order.delivery_address || 'Не указан'} />
-            <Info label="Формат"   value={order.is_remote ? 'Удалёнщик' : 'В офисе'} />
-            {order.is_remote && <Info label="Страна" value={order.country || 'Не указана'} />}
+            <Info label="Формат"   value={fulfillmentLabel(order.fulfillment_mode,order.is_remote)} />
+            {order.is_remote && <><Info label="Страна" value={order.country || 'Не указана'} /><Info label="Город" value={order.city || 'Не указан'} /></>}
+            {order.fulfillment_mode==='remote_visit'&&<><Info label="Приезд" value={order.visit_from||'—'}/><Info label="Отъезд" value={order.visit_until||'—'}/><Link href="/admin/tasks">Задача по визиту →</Link></>}
           </div>
           {order.comment && (
             <div className="ao-note-box">

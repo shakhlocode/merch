@@ -1,3 +1,4 @@
+import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
 import OrderBarcode from '@/components/OrderBarcode'
@@ -25,6 +26,10 @@ type OrderItem = {
 type Order = {
   id: string
   order_number: string
+  fulfillment_mode: string|null
+  legal_entity: string|null
+  visit_from:string|null
+  visit_until:string|null
   is_remote: boolean
   pickup_code: string | null
   remote_contact_name: string | null
@@ -76,12 +81,6 @@ const statusPillClass: Record<OrderStatus, string> = {
   rejected:   'pill pill-red',
 }
 
-const deliveryLabels: Record<DeliveryType, string> = {
-  office:  'В офис',
-  pvz:     'ПВЗ / филиал',
-  pickup:  'Самовывоз',
-  courier: 'Курьер',
-}
 
 const flowStatuses: OrderStatus[] = [
   'new', 'review', 'confirmed', 'assembling', 'ready', 'shipped', 'received',
@@ -109,7 +108,7 @@ export default async function OrdersPage() {
   const { data: rawOrders, error } = await supabase
     .from('orders')
     .select(`
-      id, order_number, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
+      id, order_number, fulfillment_mode, legal_entity, visit_from, visit_until, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
       full_name, phone, email, city, department,
       comment, admin_comment, tracking_number,
       created_at, confirmed_at, shipped_at, received_at, cancelled_at,
@@ -120,7 +119,7 @@ export default async function OrdersPage() {
 
   const { data: settings } = await supabase
     .from('merch_settings')
-    .select('handout_deadline, handout_place, handout_note')
+    .select('pickup_message')
     .eq('id', 1)
     .maybeSingle()
 
@@ -177,20 +176,6 @@ export default async function OrdersPage() {
           <StatCard label="Получено"       value={doneOrders} />
         </div>
 
-        {/* ── Handout deadline / place ── */}
-        {settings && (settings.handout_deadline || settings.handout_place || settings.handout_note) && (
-          <div className="handout-banner">
-            <span className="kicker">Раздача мерча</span>
-            {settings.handout_deadline && (
-              <span><b>Когда:</b> {formatDateTime(settings.handout_deadline)}</span>
-            )}
-            {settings.handout_place && (
-              <span><b>Где:</b> {settings.handout_place}</span>
-            )}
-            {settings.handout_note && <span>{settings.handout_note}</span>}
-          </div>
-        )}
-
         {/* ── Orders list ── */}
         {orders.length === 0 ? (
           <div className="orders-empty">
@@ -204,7 +189,7 @@ export default async function OrdersPage() {
         ) : (
           <div className="orders-list">
             {orders.map(order => (
-              <OrderCard key={order.id} order={order} />
+              <OrderCard key={order.id} order={order} message={settings?.pickup_message||DEFAULT_PICKUP_MESSAGE} />
             ))}
           </div>
         )}
@@ -258,7 +243,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
 /*  OrderCard                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function OrderCard({ order }: { order: Order }) {
+function OrderCard({ order,message }: { order: Order; message:string }) {
   const items    = order.order_items ?? []
   const totalQty = items.reduce((s, i) => s + Number(i.qty), 0)
 
@@ -306,7 +291,7 @@ function OrderCard({ order }: { order: Order }) {
           <p className="order-side-main">
             {isReceived && order.received_at
               ? formatDateShort(order.received_at)
-              : deliveryLabels[order.delivery_type]}
+              : fulfillmentLabel(order.fulfillment_mode,order.is_remote)}
           </p>
           <p className="order-side-mute">{order.delivery_address || 'Адрес не указан'}</p>
         </div>
@@ -359,6 +344,8 @@ function OrderCard({ order }: { order: Order }) {
       {order.is_remote && !isRejected && <div className="order-pickup">
         <p>Ваш заказ принят. {order.remote_contact_name ? `${order.remote_contact_name} свяжется с вами` : 'Ответственный сотрудник свяжется с вами'} и сообщит, как получить мерч, включая трек-номер при отправке. Штрихкод для офисной выдачи не нужен.</p>
       </div>}
+      {order.fulfillment_mode==='remote_visit'&&<p>Ваш визит в Ташкент: с {order.visit_from} по {order.visit_until}.{!isRejected&&!isReceived?' Мерч зарезервирован, администратор свяжется с вами.':''}</p>}
+      {!isRejected&&!order.is_remote&&!isReceived&&<p className="pickup-message">{message}</p>}
       {isReceived && <p>Выдали: {order.received_at ? formatDateTime(order.received_at) : 'Дата не указана'} · {order.received_by_name || 'Администратор не указан'}</p>}
       {/* ── Pickup barcode ── */}
       {!isRejected && !order.is_remote && order.pickup_code && (

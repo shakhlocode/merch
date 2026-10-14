@@ -61,6 +61,7 @@ export default async function AdminOrdersPage() {
       `
       id,
       order_number,
+      fulfillment_mode,legal_entity,pickup_office_name,visit_from,visit_until,
       pickup_code,
       version,
       received_by_name,

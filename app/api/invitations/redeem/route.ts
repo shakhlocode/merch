@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
     const auth = isolatedAuthClient()
     const { data: verified, error: verifyError } = await auth.auth.verifyOtp({
       token_hash: link.properties.hashed_token,
-      type: 'magiclink',
+      type:
+        link.properties.verification_type === 'signup' ? 'signup' : 'magiclink',
     })
     if (verifyError || !verified.session || !verified.user)
       throw new Error('Не удалось подготовить вход. Повторите попытку.')

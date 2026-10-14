@@ -58,6 +58,18 @@ type Rel<
 export type Database = {
   public: {
     Tables: {
+      pickup_offices: {
+        Row: { id: string; name: string; address: string; is_active: boolean; sort: number }
+        Insert: { id?: string; name: string; address?: string; is_active?: boolean; sort?: number }
+        Update: Partial<Database['public']['Tables']['pickup_offices']['Insert']>
+        Relationships: never[]
+      }
+      order_tasks: {
+        Row: { id: string; order_id: string; due_on: string; reserve_until: string; contacted_at: string | null; contacted_by: string | null; closed_at: string | null; created_at: string }
+        Insert: never
+        Update: never
+        Relationships: [Rel<'order_tasks_order_id_fkey', ['order_id'], 'orders', ['id']>]
+      }
       order_events: {
         Row: { id: string; order_id: string; actor_id: string | null; action: string; data: Record<string, unknown>; created_at: string }
         Insert: never
@@ -107,6 +119,7 @@ export type Database = {
       }
       employee_directory: {
         Row: {
+          legal_entity: string | null
           id:            string
           email:         string
           full_name:     string
@@ -125,6 +138,7 @@ export type Database = {
           updated_at:    string
         }
         Insert: {
+          legal_entity?: string | null
           id?:            string
           email:          string
           full_name:      string
@@ -289,6 +303,14 @@ export type Database = {
       }
       orders: {
         Row: {
+          fulfillment_mode: string | null
+          legal_entity: string | null
+          pickup_office_id: string | null
+          pickup_office_name: string | null
+          pickup_office_address: string | null
+          visit_from: string | null
+          visit_until: string | null
+
           pickup_code: string | null
           version: number
           received_by: string | null
@@ -326,6 +348,14 @@ export type Database = {
           cancelled_at:     string | null
         }
         Insert: {
+          fulfillment_mode?: string | null
+          legal_entity?: string | null
+          pickup_office_id?: string | null
+          pickup_office_name?: string | null
+          pickup_office_address?: string | null
+          visit_from?: string | null
+          visit_until?: string | null
+
           id?:               string
           employee_id:       string
           is_remote?:        boolean
@@ -369,6 +399,8 @@ export type Database = {
       }
       merch_settings: {
         Row: {
+          pickup_message: string
+
           id:               number
           handout_deadline: string | null
           handout_place:    string | null
@@ -376,6 +408,8 @@ export type Database = {
           updated_at:       string
         }
         Insert: {
+          pickup_message?: string
+
           id?:               number
           handout_deadline?: string | null
           handout_place?:    string | null
@@ -479,6 +513,9 @@ export type Database = {
         Args: { p_order_id: string; p_items: { variant_id: string; qty: number }[]; p_expected_version: number }
         Returns: unknown
       }
+      my_checkout_identity: { Args: Record<string, never>; Returns: { full_name: string; legal_entity: string | null } | null }
+      admin_contact_visit: { Args: { p_id: string }; Returns: undefined }
+      create_merch_order_v2: { Args: { p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string } }
       create_merch_order: {
         Args: {
           p_items:            { variant_id: string; qty: number }[]

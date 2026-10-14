@@ -1,4 +1,4 @@
-export type ImportEmployee = { email: string; full_name: string; external_id: string | null }
+export type ImportEmployee = { email: string; full_name: string; external_id: string | null; legal_entity?: string | null }
 
 export function parseEmployeeCsv(text: string): string[][] {
   const delimiter = text.split(/\r?\n/, 1)[0].includes(';') ? ';' : ','
@@ -20,6 +20,7 @@ export function validateEmployeeRows(raw: unknown[][], allowMissingEmail = false
   const header = (raw[0] ?? []).map(v => String(v ?? '').replace(/^\uFEFF/, '').trim().toLowerCase())
   const mail = header.findIndex(v => ['email','e-mail','почта','имейл'].includes(v))
   const name = header.findIndex(v => ['full_name','фио','ф.и.о.'].includes(v))
+  const legal = header.findIndex(v=>['legal_entity','юрлицо','юридическое лицо'].includes(v))
   const id = header.findIndex(v => ['external_id','идентификатор','id'].includes(v))
   if (mail < 0 || name < 0) return { rows: [], errors: ['В первой строке нужны заголовки Email и ФИО. Идентификатор — необязательно.'] }
   const rows: ImportEmployee[] = [], errors: string[] = [], emails = new Set<string>(), ids = new Set<string>()
@@ -33,7 +34,7 @@ export function validateEmployeeRows(raw: unknown[][], allowMissingEmail = false
     if (email && emails.has(email)) errors.push(prefix+'email повторяется в файле')
     if (external_id && ids.has(external_id)) errors.push(prefix+'идентификатор повторяется в файле')
     emails.add(email); if (external_id) ids.add(external_id)
-    rows.push({ email, full_name, external_id })
+    rows.push({ email, full_name, external_id, ...(legal>=0?{legal_entity:String(row[legal]??'').trim()||null}:{}) })
   })
   if (!rows.length || rows.length > 2000) errors.push('В файле должно быть от 1 до 2000 сотрудников')
   return { rows, errors }

@@ -14,6 +14,7 @@ import { getExportDate, toCsv } from '@/lib/utils'
 
 export type DirectoryEmployee = {
   id: string
+  legal_entity?: string | null
   email: string
   full_name: string
   business_unit: string | null
@@ -92,6 +93,7 @@ export default function AdminEmployeesClient({
       full_name:     e.full_name,
       email:         e.email,
       external_id:   e.external_id || '',
+      legal_entity:e.legal_entity||'',
       business_unit: e.business_unit || '',
       position:      e.position || '',
       hired_at:      formatDate(e.hired_at),
@@ -282,6 +284,7 @@ function EmployeeEditor({
   const router = useRouter()
   const isCreate = mode === 'create'
 
+  const [legalEntity,setLegalEntity]=useState(employee?.legal_entity??'')
   const [fullName, setFullName] = useState(employee?.full_name ?? '')
   const [email,    setEmail]    = useState(employee?.email?.endsWith('.merch.invalid') ? '' : employee?.email ?? '')
   const [invitation, setInvitation] = useState<InvitationChoiceValue>('none')
@@ -304,6 +307,7 @@ function EmployeeEditor({
           action: isCreate ? 'create_employee' : 'update_employee',
           id: employee?.id,
           full_name: fullName,
+          legal_entity:legalEntity,
           email: !isCreate && employee?.email?.endsWith('.merch.invalid') ? employee.email : email,
           external_id: externalId,
           invitation,
@@ -360,6 +364,7 @@ function EmployeeEditor({
         </label>
       </div>
 
+      <label className="ae-field">Юридическое лицо · необязательно<input className="ae-input" value={legalEntity} onChange={e=>setLegalEntity(e.target.value)} maxLength={250}/></label>
       <InvitationChoice value={invitation} onChange={setInvitation} />
       <EmployeeAccessFields mode={accessMode} until={accessDate} onMode={setAccessMode} onUntil={setAccessDate} />
       {employee?.access_used_at && <p>Разовый доступ использован. При необходимости можно выдать его повторно.</p>}

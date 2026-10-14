@@ -10,6 +10,7 @@ type Payload = {
   action?: EmployeeAction
   id?: string
   email?: string
+  legal_entity?: string | null
   full_name?: string
   business_unit?: string | null
   position?: string | null
@@ -18,7 +19,7 @@ type Payload = {
   access_until?: string
   renew_access?: boolean
   external_id?: string | null
-  rows?: { email: string; full_name: string; external_id: string | null }[]
+  rows?: { email: string; full_name: string; external_id: string | null; legal_entity?: string | null }[]
   hired_at?: string
   is_active?: boolean
 }
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
       ...(body.action === 'create_employee' && body.invitation && body.invitation !== 'none' ? { invitation_required: true, invitation_one_order: true } : {}),
       ...(body.renew_access === true ? { access_used_at: null } : {}),
       email,
+      ...(body.legal_entity !== undefined?{legal_entity:cleanText(body.legal_entity)}:{}),
       full_name:     fullName,
       external_id: cleanText(body.external_id),
       is_active:     body.is_active ?? true,

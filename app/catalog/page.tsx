@@ -56,6 +56,11 @@ export default async function CatalogPage() {
   })
   const access = Array.isArray(accessRows) ? accessRows[0] : null
 
+  const [{ data: offices }, { data: identity }] = await Promise.all([
+    supabase.from('pickup_offices').select('*').eq('is_active',true).order('sort').order('name'),
+    supabase.rpc('my_checkout_identity',{}),
+  ])
+
   const defaultDeliveryAddress = [employee?.city, employee?.office]
     .filter(Boolean)
     .join(', ')
@@ -141,6 +146,8 @@ export default async function CatalogPage() {
   return (
     <CatalogClient
       products={products}
+      offices={offices ?? []}
+      identity={{ full_name: identity?.full_name ?? employee?.full_name ?? null, legal_entity: identity?.legal_entity ?? null }}
       userEmail={user.email ?? null}
       userName={employee?.full_name ?? null}
       isAdmin={Boolean(employee?.is_admin)}

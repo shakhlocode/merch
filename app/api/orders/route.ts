@@ -8,6 +8,11 @@ type CheckoutItem = {
 
 type CheckoutPayload = {
   items: CheckoutItem[]
+  fulfillment_mode?: string
+  pickup_office_id?: string
+  city?: string
+  visit_from?: string
+  visit_until?: string
   delivery_type?: 'office' | 'pvz' | 'pickup' | 'courier'
   delivery_address?: string
   phone?: string
@@ -111,17 +116,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'one_variant_per_product_only' }, { status: 400 })
     }
 
-    const isRemote = body.is_remote === true
-    const country = isRemote ? (body.country?.trim() || null) : null
-
-    const { data, error } = await supabase.rpc('create_merch_order', {
+    const { data, error } = await supabase.rpc('create_merch_order_v2', {
       p_items: items,
-      p_delivery_type: 'office',
-      p_delivery_address: body.delivery_address ?? null,
-      p_phone: body.phone ?? null,
-      p_comment: body.comment ?? null,
-      p_is_remote: isRemote,
-      p_country: country,
+      p_mode: body.fulfillment_mode ?? '',
+      p_office_id: body.pickup_office_id || null,
+      p_phone: body.phone || '',
+      p_country: body.country || null,
+      p_city: body.city || null,
+      p_comment: body.comment || null,
+      p_visit_from: body.visit_from || null,
+      p_visit_until: body.visit_until || null,
     })
 
     if (error) {

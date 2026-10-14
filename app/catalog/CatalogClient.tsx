@@ -1,5 +1,8 @@
 'use client'
 
+import FulfillmentForm from '@/components/FulfillmentForm'
+import OrderBarcode from '@/components/OrderBarcode'
+import type { PickupDetails,PickupOffice } from '@/lib/fulfillment'
 import AppNav from '@/components/AppNav'
 import ProductImage from '@/components/ProductImage'
 import { getProductLetter } from '@/lib/utils'
@@ -54,6 +57,8 @@ type MerchAccess = {
 }
 
 type CatalogClientProps = {
+  offices: PickupOffice[]
+  identity: {full_name:string|null;legal_entity:string|null}
   products: CatalogProduct[]
   userEmail: string | null
   userName: string | null
@@ -74,6 +79,7 @@ const MAX_UNIQUE_PRODUCTS = 3
 
 export default function CatalogClient({
   products,
+  offices, identity,
   userEmail,
   userName,
   isAdmin,
@@ -84,11 +90,8 @@ export default function CatalogClient({
   const [cart, setCart] = useState<CartItem[]>([])
 
   /* Checkout form */
-  const [deliveryAddress, setDeliveryAddress] = useState(checkoutDefaults.deliveryAddress)
-  const [phone,           setPhone]           = useState(checkoutDefaults.phone)
-  const [comment,         setComment]         = useState('')
-  const [isRemote,        setIsRemote]        = useState(false)
-  const [country,         setCountry]         = useState('')
+  const [pickup,setPickup]=useState<PickupDetails>({mode:'office',officeId:'',phone:checkoutDefaults.phone,country:'',city:'',comment:'',visitFrom:'',visitUntil:''})
+  const [successCode,setSuccessCode]=useState<string|null>(null)
   const [isSubmitting,    setIsSubmitting]    = useState(false)
   const [checkoutError,   setCheckoutError]   = useState<string | null>(null)
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null)
@@ -179,12 +182,14 @@ export default function CatalogClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items:            cart.map(item => ({ variant_id: item.variant.id, qty: 1 })),
-          delivery_type:    'office',
-          delivery_address: deliveryAddress,
-          phone,
-          comment,
-          is_remote:        isRemote,
-          country:          isRemote ? country : null,
+          fulfillment_mode: pickup.mode,
+          pickup_office_id: pickup.mode==='remote_shipping'?null:pickup.officeId,
+          phone: pickup.phone,
+          country: pickup.mode==='remote_shipping'?pickup.country:null,
+          city: pickup.mode==='remote_shipping'?pickup.city:null,
+          comment: pickup.mode==='office'?null:pickup.comment,
+          visit_from: pickup.mode==='remote_visit'?pickup.visitFrom:null,
+          visit_until: pickup.mode==='remote_visit'?pickup.visitUntil:null,
         }),
       })
 
@@ -196,15 +201,9 @@ export default function CatalogClient({
       }
 
       setCart([])
-      setDeliveryAddress(checkoutDefaults.deliveryAddress)
-      setPhone(checkoutDefaults.phone)
-      setComment('')
-      setCountry('')
-      setCheckoutSuccess(
-        result.order?.order_number
-          ? (isRemote ? `Заказ #${result.order.order_number} принят. Ответственный сотрудник свяжется с вами и сообщит, как получить мерч.` : `Заказ #${result.order.order_number} создан. Ваш штрихкод — в разделе «Мои заказы».`)
-          : 'Заказ успешно создан'
-      )
+      setSuccessCode(result.order?.pickup_code ?? null)
+      setCheckoutSuccess(`Заказ #${result.order.order_number}. ${result.order.pickup_message}`)
+
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Неизвестная ошибка')
     } finally {
@@ -355,21 +354,13 @@ export default function CatalogClient({
                 key={checkoutSuccess ?? 'cart'}
                 cart={cart}
                 totalQty={totalQty}
-                deliveryAddress={deliveryAddress}
-                phone={phone}
-                comment={comment}
-                isRemote={isRemote}
-                country={country}
+                pickup={pickup} offices={offices} identity={identity} successCode={successCode}
                 isSubmitting={isSubmitting}
                 checkoutError={checkoutError}
                 checkoutSuccess={checkoutSuccess}
                 merchAccess={merchAccess}
                 onRemove={removeFromCart}
-                onDeliveryAddressChange={setDeliveryAddress}
-                onPhoneChange={setPhone}
-                onCommentChange={setComment}
-                onRemoteChange={setIsRemote}
-                onCountryChange={setCountry}
+                onPickupChange={setPickup}
                 onCheckout={handleCheckout}
               />
         </div>{/* /catalog-body */}
@@ -470,44 +461,9 @@ function ProductCard({
 /*  CartAside                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CartAside({
-  cart,
-  totalQty,
-  deliveryAddress,
-  phone,
-  comment,
-  isRemote,
-  country,
-  isSubmitting,
-  checkoutError,
-  checkoutSuccess,
-  merchAccess,
-  onRemove,
-  onDeliveryAddressChange,
-  onPhoneChange,
-  onCommentChange,
-  onRemoteChange,
-  onCountryChange,
-  onCheckout,
-}: {
-  cart: CartItem[]
-  totalQty: number
-  deliveryAddress: string
-  phone: string
-  comment: string
-  isRemote: boolean
-  country: string
-  isSubmitting: boolean
-  checkoutError: string | null
-  checkoutSuccess: string | null
-  merchAccess: MerchAccess
-  onRemove: (variantId: string) => void
-  onDeliveryAddressChange: (value: string) => void
-  onPhoneChange: (value: string) => void
-  onCommentChange: (value: string) => void
-  onRemoteChange: (value: boolean) => void
-  onCountryChange: (value: string) => void
-  onCheckout: () => void
+function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+ cart:CartItem[];totalQty:number;pickup:PickupDetails;offices:PickupOffice[];identity:{full_name:string|null;legal_entity:string|null};successCode:string|null;
+ isSubmitting:boolean;checkoutError:string|null;checkoutSuccess:string|null;merchAccess:MerchAccess;onRemove:(id:string)=>void;onPickupChange:(value:PickupDetails)=>void;onCheckout:()=>void
 }) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   return (
@@ -519,7 +475,7 @@ function CartAside({
         <span className="cart-counter">{totalQty} / {MAX_UNIQUE_PRODUCTS} позиции</span>
       </div>
 
-      {checkoutSuccess && <CheckoutSuccessCard message={checkoutSuccess} />}
+      {checkoutSuccess && <CheckoutSuccessCard message={checkoutSuccess} code={successCode} />}
 
       {cart.length === 0 ? (
         <div className="cart-empty">
@@ -564,60 +520,7 @@ function CartAside({
           {isCheckoutOpen && <div className="cart-form">
             <button type="button" className="login-text-button" disabled={isSubmitting} onClick={() => setIsCheckoutOpen(false)}>← Назад к выбору</button>
 
-            <p>Получение в офисе. Для удалённых сотрудников получение согласует ответственный администратор.</p>
-            <label className="form-label">
-              Адрес / офис / точка получения
-              <input
-                type="text"
-                className="form-input"
-                value={deliveryAddress}
-                onChange={e => onDeliveryAddressChange(e.target.value)}
-                placeholder="Например: Ташкент, офис Сергели"
-              />
-            </label>
-
-            <label className="form-label">
-              Телефон
-              <input
-                type="tel"
-                className="form-input"
-                value={phone}
-                onChange={e => onPhoneChange(e.target.value)}
-                placeholder="+998..."
-              />
-            </label>
-
-            <label className="form-check">
-              <input
-                type="checkbox"
-                checked={isRemote}
-                onChange={e => onRemoteChange(e.target.checked)}
-              />
-              Я удаленщик (получаю мерч не в офисе)
-            </label>
-
-            {isRemote && (
-              <label className="form-label">
-                Страна
-                <input
-                  type="text"
-                  className="form-input"
-                  value={country}
-                  onChange={e => onCountryChange(e.target.value)}
-                  placeholder="Например: Казахстан"
-                />
-              </label>
-            )}
-
-            <label className="form-label">
-              Комментарий
-              <textarea
-                className="form-textarea"
-                value={comment}
-                onChange={e => onCommentChange(e.target.value)}
-                placeholder="Комментарий к заказу"
-              />
-            </label>
+            <FulfillmentForm value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
 
             {checkoutError && (
               <div className="form-error">{checkoutError}</div>
@@ -646,7 +549,7 @@ function CartAside({
 /*  CheckoutSuccessCard                                                         */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CheckoutSuccessCard({ message }: { message: string }) {
+function CheckoutSuccessCard({ message,code }: { message: string; code:string|null }) {
   return (
     <div className="confirm-card">
       <div className="confirm-icon">✓</div>
@@ -656,6 +559,7 @@ function CheckoutSuccessCard({ message }: { message: string }) {
         <p className="confirm-text">
           Мы сохранили вашу заявку. Статус обработки можно отслеживать в разделе «Мои заказы».
         </p>
+        {code && <OrderBarcode value={code} size={260}/>}
         <div className="confirm-actions">
           <a href="/orders" className="confirm-primary-link">Перейти в мои заказы</a>
           <a href="#catalog-grid" className="confirm-ghost-link">Продолжить выбор</a>
