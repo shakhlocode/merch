@@ -31,7 +31,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002'
 select pg_temp.assert((select count(*)=1 from public.employees),'employee can only read own profile');
 select pg_temp.assert((select count(*)=0 from public.employee_directory),'HR directory is private');
 select pg_temp.assert((select count(*)=3 from public.product_variants),'inactive products are hidden');
-select pg_temp.assert((select is_allowed from public.get_employee_merch_access('employee@example.test')),'three-month eligibility');
+select pg_temp.assert((select is_allowed from public.get_employee_merch_access('employee@example.test')),'active directory eligibility');
 select public.update_my_profile('Updated employee','123',null,null,'Tashkent',null);
 select public.mark_password_set();
 select pg_temp.assert((select password_set_at is not null and full_name='Updated employee' from public.employees),'profile and password setup');
@@ -64,11 +64,7 @@ select pg_temp.assert((select count(*)=1 from public.order_items),'order items r
 
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000003',true);
 select pg_temp.assert((select count(*)=0 from public.orders),'another employee cannot read orders');
-do $$ begin
-  begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000001","qty":1}]','office',null,null,null,false,null);
-    raise exception 'EXPECTED_DENIAL_MISSING';
-  exception when others then if sqlerrm <> 'employee_tenure_too_short' then raise; end if; end;
-end $$;
+select pg_temp.assert((select is_allowed from public.get_employee_merch_access('new@example.test')),'active directory membership grants access regardless of tenure');
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000004',true);
 do $$ begin
   begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000001","qty":1}]','office',null,null,null,false,null);

@@ -58,7 +58,7 @@ export default async function AdminEmployeesPage() {
     await Promise.all([
       supabase
         .from('employee_directory')
-        .select('id, email, full_name, business_unit, position, hired_at, is_active, created_at, updated_at')
+        .select('id, email, full_name, external_id, business_unit, position, hired_at, is_active, created_at, updated_at')
         .order('full_name', { ascending: true }),
       supabase
         .from('orders')

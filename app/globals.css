@@ -4050,3 +4050,35 @@ input:focus, select:focus, textarea:focus {
   .ap-summary-compact .ap-summary-metric { padding: 10px; font-size: 10px; overflow-wrap: anywhere; }
 }
 .ap-metric > span, .ap-variant-header > div { overflow-wrap: anywhere; }
+
+/* Variant fields wrap vertically rather than scrolling a wide warehouse table. */
+.ap-variant-cards { display: grid; gap: 16px; }
+.ap-variant-cards .ap-variant-row-wrap { padding: 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
+.ap-variant-fields, .ap-stock-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ap-variant-fields label, .ap-stock-fields label { display: flex; flex-direction: column; gap: 6px; min-width: 0; color: var(--inkMute); font-size: 12px; font-weight: 600; }
+.ap-variant-fields .ap-input, .ap-stock-fields .ap-input { width: 100%; min-width: 0; }
+.ap-variant-wide { grid-column: 1 / -1; }
+.ap-sku-field { height: auto; padding-block: 10px; resize: vertical; overflow-wrap: anywhere; }
+.ap-variant-stock { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.ap-variant-save { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 18px; }
+.ap-stock-fields { border-top: 1px solid var(--border); padding-top: 16px; }
+.ap-archive-action { display: inline-flex; flex-direction: column; gap: 4px; }
+.ap-create-variant-box { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.ap-create-variant-box .ap-input { min-width: 0; width: 100%; }
+.ap-create-variant-box button { grid-column: 1 / -1; }
+.ae-directory-simple .ae-summary-strip { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.ae-directory-simple .ae-table-header, .ae-directory-simple .ae-row { grid-template-columns: minmax(200px,1.4fr) minmax(200px,1.4fr) minmax(120px,1fr) 140px 32px; min-width: 0; gap: 12px; }
+@media (max-width: 900px) { .ae-directory-simple .ae-row { display: flex; } }
+.ae-editor input[type=file] { max-width: 100%; }
+.ae-editor li { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .admin-shell { grid-template-columns: minmax(0, 1fr); }
+  .admin-sidebar { min-width: 0; }
+}
+@media (max-width: 760px) {
+  .ae-directory-simple .ae-toolbar-right { flex-direction: column; align-items: stretch; }
+  .ae-directory-simple .ae-toolbar-right button { width: 100%; }
+  .ae-directory-simple .ae-summary-strip { grid-template-columns: minmax(0,1fr); }
+  .ae-editor-actions { flex-wrap: wrap; }
+  .ae-field, .ae-input { min-width: 0; max-width: 100%; }
+}

@@ -106,7 +106,8 @@ export type Database = {
           full_name:     string
           business_unit: string | null
           position:      string | null
-          hired_at:      string
+          external_id:   string | null
+          hired_at:      string | null
           is_active:     boolean
           created_at:    string
           updated_at:    string
@@ -117,7 +118,8 @@ export type Database = {
           full_name:      string
           business_unit?: string | null
           position?:      string | null
-          hired_at:       string
+          external_id?:   string | null
+          hired_at?:      string | null
           is_active?:     boolean
         }
         Update: Partial<Database['public']['Tables']['employee_directory']['Insert']>
@@ -435,6 +437,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_import_employees: {
+        Args: { p_rows: { email: string; full_name: string; external_id: string | null }[] }
+        Returns: { added: number; skipped: number }
+      }
       admin_create_product: {
         Args: { p_name: string; p_description: string | null; p_image_url: string | null; p_placement: string; p_variants: { size: string; color: string; qty: number }[] }
         Returns: { id: string }

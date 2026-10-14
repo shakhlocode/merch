@@ -1,0 +1,45 @@
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { parseEmployeeCsv, validateEmployeeRows, type ImportEmployee } from '@/lib/employee-import'
+
+export default function EmployeeImport() {
+  const router = useRouter()
+  const [rows, setRows] = useState<ImportEmployee[]>([])
+  const [errors, setErrors] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  return <section className="ae-editor ae-editor-create">
+    <h2 className="ae-editor-title">Загрузка сотрудников из таблицы</h2>
+    <p>Первый лист Excel (.xlsx) или CSV, до 5 МБ и 2000 сотрудников. Колонки: Email, ФИО, Идентификатор (необязательно). Идентификаторы с ведущими нулями храните как текст.</p>
+    <a href="/templates/employees.csv" download className="login-text-button">Скачать шаблон CSV для Excel</a>
+    <p>Существующие email будут пропущены. Добавленные сотрудники сразу получат право заказывать мерч после входа.</p>
+    <label className="ae-field">Выберите таблицу<input type="file" accept=".xlsx,.csv" disabled={busy} onChange={async event => {
+      const file = event.target.files?.[0]; setRows([]); setErrors([]); setMessage('')
+      if (!file) return
+      setBusy(true)
+      try {
+        if (file.size > 5*1024*1024) throw new Error('Файл должен быть не больше 5 МБ')
+        let raw: unknown[][]
+        if (file.name.toLowerCase().endsWith('.xlsx')) {
+          const { readSheet } = await import('read-excel-file/browser')
+          raw = await readSheet(file, 1)
+        } else if (file.name.toLowerCase().endsWith('.csv')) raw = parseEmployeeCsv(await file.text())
+        else throw new Error('Выберите файл .xlsx или .csv')
+        const result = validateEmployeeRows(raw); setRows(result.rows); setErrors(result.errors)
+      } catch (e) { setErrors([e instanceof Error ? e.message : 'Не удалось прочитать файл']) } finally { setBusy(false) }
+    }} /></label>
+    {errors.length > 0 && <div role="alert" className="ae-error">{errors.slice(0,20).map((error,i) => <p key={i}>{error}</p>)}{errors.length>20 && <p>И ещё {errors.length-20} ошибок.</p>}</div>}
+    {rows.length>0 && !errors.length && <div><p>Проверено строк: {rows.length}. Первые 5:</p><ul>{rows.slice(0,5).map(row => <li key={row.email}>{row.full_name} · {row.email} · {row.external_id || 'Без идентификатора'}</li>)}</ul></div>}
+    <button type="button" className="ae-save-btn" disabled={busy || !rows.length || !!errors.length} onClick={async () => {
+      setBusy(true); setMessage('')
+      try {
+        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows }) })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Не удалось загрузить сотрудников')
+        setMessage(`Добавлено: ${result.added}. Уже были в реестре: ${result.skipped}.`); setRows([]); router.refresh()
+      } catch (e) { setErrors([e instanceof Error ? e.message : 'Ошибка загрузки']) } finally { setBusy(false) }
+    }}>{busy ? 'Обрабатываем…' : 'Добавить сотрудников'}</button>
+    {message && <p role="status">{message}</p>}
+  </section>
+}

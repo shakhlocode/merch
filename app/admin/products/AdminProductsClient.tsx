@@ -65,7 +65,7 @@ export default function AdminProductsClient({
   const [search,            setSearch]           = useState(queryFromUrl)
   const [selectedCategory,  setSelectedCategory] = useState<string>('all')
   const [stockFilter,       setStockFilter]      = useState<StockFilter>('all')
-  const [showInactive,      setShowInactive]      = useState(true)
+  const [productStatus, setProductStatus] = useState('active')
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   const [editingProductId,  setEditingProductId]  = useState<string | null>(null)
   const [isCreateOpen,      setIsCreateOpen]      = useState(false)
@@ -78,7 +78,7 @@ export default function AdminProductsClient({
     return products.filter((product) => {
       const stats = getProductStats(product)
 
-      const activeMatch   = showInactive || product.is_active
+      const activeMatch = productStatus === 'all' || (productStatus === 'archive' ? !product.is_active : product.is_active)
       const categoryMatch = selectedCategory === 'all' || product.category_id === selectedCategory
       const stockMatch    =
         stockFilter === 'all' ||
@@ -98,18 +98,19 @@ export default function AdminProductsClient({
 
       return activeMatch && categoryMatch && stockMatch && searchMatch
     })
-  }, [products, search, selectedCategory, stockFilter, showInactive])
+  }, [products, search, selectedCategory, stockFilter, productStatus])
 
   const totals = useMemo(() => {
-    const totalProducts  = products.length
-    const activeProducts = products.filter((p) => p.is_active).length
-    const totalVariants  = products.reduce((s, p) => s + p.product_variants.length, 0)
-    const totalQty       = products.reduce((s, p) => s + getProductStats(p).totalQty, 0)
-    const reservedQty    = products.reduce((s, p) => s + getProductStats(p).reservedQty, 0)
+    const scoped = products.filter(product => productStatus === 'all' || (productStatus === 'archive' ? !product.is_active : product.is_active))
+    const totalProducts  = scoped.length
+    const activeProducts = scoped.filter((p) => p.is_active).length
+    const totalVariants  = scoped.reduce((s, p) => s + p.product_variants.length, 0)
+    const totalQty       = scoped.reduce((s, p) => s + getProductStats(p).totalQty, 0)
+    const reservedQty    = scoped.reduce((s, p) => s + getProductStats(p).reservedQty, 0)
     const availableQty   = Math.max(0, totalQty - reservedQty)
-    const lowVariants    = products.reduce((s, p) => s + getProductStats(p).lowVariants, 0)
+    const lowVariants    = scoped.reduce((s, p) => s + getProductStats(p).lowVariants, 0)
     return { totalProducts, activeProducts, totalVariants, totalQty, reservedQty, availableQty, lowVariants }
-  }, [products])
+  }, [products, productStatus])
 
   function handleExportStockCsv() {
     const rows = filteredProducts.flatMap((product) => {
@@ -118,7 +119,7 @@ export default function AdminProductsClient({
         product_name:          product.name,
         category:              getCategoryName(product),
         material:              product.material || '',
-        product_status:        product.is_active ? 'Активен' : 'Отключён',
+        product_status:        product.is_active ? 'Активен' : 'В архиве',
         product_total_qty:     String(productStats.totalQty),
         product_reserved_qty:  String(productStats.reservedQty),
         product_available_qty: String(productStats.availableQty),
@@ -135,7 +136,7 @@ export default function AdminProductsClient({
         const reservedQty  = Number(variant.reserved_qty)
         const availableQty = Math.max(0, totalQty - reservedQty)
         const stockStatus  = availableQty <= 0 ? 'Нет в наличии' : availableQty <= 4 ? 'Мало осталось' : 'Достаточно'
-        return { ...baseRow, variant_size: variant.size || 'ONE SIZE', variant_color: variant.color || 'Без цвета', sku: variant.sku || '', variant_status: variant.is_active ? 'Активен' : 'Отключён', total_qty: String(totalQty), reserved_qty: String(reservedQty), available_qty: String(availableQty), stock_status: stockStatus }
+        return { ...baseRow, variant_size: variant.size || 'ONE SIZE', variant_color: variant.color || 'Без цвета', sku: variant.sku || '', variant_status: variant.is_active ? 'Активен' : 'В архиве', total_qty: String(totalQty), reserved_qty: String(reservedQty), available_qty: String(availableQty), stock_status: stockStatus }
       })
     })
 
@@ -157,7 +158,7 @@ export default function AdminProductsClient({
       title={isCardsMode ? 'Карточки товара' : 'Товары и остатки'}
       subtitle="Админ-панель · merch.uzum.tech"
       orderCount={orderCount}
-      stockAlertCount={totals.lowVariants}
+      stockAlertCount={products.filter(p => p.is_active).reduce((sum,p) => sum + getProductStats(p).lowVariants,0)}
     >
       <section className="ap-page">
 
@@ -180,9 +181,10 @@ export default function AdminProductsClient({
             </select>
           </label>
           <label className="ap-filter-field">Показывать
-            <select aria-label="Показывать" className="ap-input" value={showInactive ? 'all' : 'active'} onChange={e => setShowInactive(e.target.value === 'all')}>
-              <option value="all">Все, включая отключённые</option>
-              <option value="active">Только включённые</option>
+            <select aria-label="Показывать" className="ap-input" value={productStatus} onChange={e => setProductStatus(e.target.value)}>
+              <option value="active">Действующие товары</option>
+              <option value="archive">Архив</option>
+              <option value="all">Все товары</option>
             </select>
           </label>
         </section>
@@ -200,7 +202,7 @@ export default function AdminProductsClient({
         )}
 
         {/* Summary strip */}
-        <section className="ap-summary-strip ap-summary-compact" aria-label="Сводка по всему складу">
+        <section className="ap-summary-strip ap-summary-compact" aria-label="Сводка выбранного раздела">
           <SummaryMetric label="Всего товаров" value={String(totals.totalProducts)} hint={`Включено: ${totals.activeProducts} · Вариантов: ${totals.totalVariants}`} />
           <SummaryMetric label="На складе" value={`${totals.totalQty} шт.`} />
           <SummaryMetric label="Зарезервировано" value={`${totals.reservedQty} шт.`} />
@@ -398,6 +400,24 @@ function CreateProductCard({ onClose }: { onClose: () => void }) {
 /*  ProductCardMode                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+function ProductArchiveButton({ product }: { product: AdminProduct }) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  return <span className="ap-archive-action">
+    <button type="button" className="ap-light-btn" disabled={busy} onClick={async event => {
+      event.stopPropagation(); setBusy(true); setError(null)
+      try {
+        const response = await fetch('/api/admin/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'archive_product', product_id: product.id, is_active: !product.is_active }) })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error || 'Не удалось изменить архив')
+        router.refresh()
+      } catch (e) { setError(e instanceof Error ? e.message : 'Ошибка') } finally { setBusy(false) }
+    }}>{busy ? 'Сохраняем…' : product.is_active ? 'В архив' : 'Восстановить из архива'}</button>
+    {error && <span role="alert" className="ap-error">{error}</span>}
+  </span>
+}
+
 function ProductCardMode({
   product,
   isEditing,
@@ -424,7 +444,7 @@ function ProductCardMode({
           <div className="ap-card-placeholder">{getProductLetter(product.name)}</div>
         )}
         <span className={`ap-card-status ${product.is_active ? 'ap-card-status-active' : 'ap-card-status-inactive'}`}>
-          {product.is_active ? 'Опубликован' : 'Отключён'}
+          {product.is_active ? 'Опубликован' : 'В архиве'}
         </span>
       </div>
 
@@ -448,6 +468,7 @@ function ProductCardMode({
         >
           {isEditing ? 'Редактируется' : 'Редактировать карточку'}
         </button>
+        <ProductArchiveButton product={product} />
       </div>
     </article>
   )
@@ -523,6 +544,7 @@ function ProductRow({
             Редактировать
           </button>
 
+          <ProductArchiveButton product={product} />
           <span className="ap-chevron">{isExpanded ? '⌃' : '⌄'}</span>
         </div>
       </div>
@@ -672,7 +694,7 @@ function ProductMainEditor({ product }: { product: AdminProduct }) {
         </div>
         <label className="ap-switch-label">
           <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          Товар включён
+          Товар доступен (не в архиве)
         </label>
       </div>
 
@@ -760,10 +782,10 @@ function VariantsEditor({ product }: { product: AdminProduct }) {
       </div>
 
       <div className="ap-create-variant-box">
-        <input value={size}       onChange={(e) => setSize(e.target.value)}       placeholder="SIZE"              className="ap-input" />
-        <input value={color}      onChange={(e) => setColor(e.target.value)}      placeholder="COLOR"             className="ap-input" />
-        <input value={sku}        onChange={(e) => setSku(e.target.value)}        placeholder="SKU"               className="ap-input" />
-        <input value={initialQty} onChange={(e) => setInitialQty(e.target.value)} placeholder="Начальный остаток" className="ap-input" type="number" />
+        <label className="ap-label">Размер<input aria-label="Размер нового варианта" value={size} onChange={e => setSize(e.target.value)} placeholder="ONE SIZE или M" className="ap-input" /></label>
+        <label className="ap-label">Цвет<input aria-label="Цвет нового варианта" value={color} onChange={e => setColor(e.target.value)} placeholder="Необязательно" className="ap-input" /></label>
+        <label className="ap-label">SKU<input aria-label="SKU нового варианта" value={sku} onChange={e => setSku(e.target.value)} className="ap-input" /></label>
+        <label className="ap-label">Начальный остаток<input aria-label="Начальный остаток" value={initialQty} onChange={e => setInitialQty(e.target.value)} className="ap-input" type="number" min="0" step="1" /></label>
         <button
           type="button"
           onClick={handleCreateVariant}
@@ -779,17 +801,7 @@ function VariantsEditor({ product }: { product: AdminProduct }) {
       {sortedVariants.length === 0 ? (
         <div className="ap-empty-variant">Вариантов пока нет.</div>
       ) : (
-        <div className="ap-variant-table">
-          <div className="ap-variant-header">
-            <div>Размер</div>
-            <div>Цвет</div>
-            <div>SKU</div>
-            <div>Всего</div>
-            <div>Зарезервировано</div>
-            <div>Доступно</div>
-            <div>Статус</div>
-            <div>Действия</div>
-          </div>
+        <div className="ap-variant-cards">
           {sortedVariants.map((variant) => (
             <VariantRow key={variant.id} variant={variant} />
           ))}
@@ -861,44 +873,25 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
 
   return (
     <div className="ap-variant-row-wrap">
-      <div className="ap-variant-row">
-        <input value={size}  onChange={(e) => setSize(e.target.value)}  placeholder="SIZE"  className="ap-variant-input" />
-        <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="COLOR" className="ap-variant-input" />
-        <input value={sku}   onChange={(e) => setSku(e.target.value)}   placeholder="SKU"   className="ap-variant-input" />
-
-        <b>{variant.total_qty}</b>
-        <span>{variant.reserved_qty}</span>
-        <b className={availableQty <= 4 ? 'ap-low-qty' : ''}>{availableQty}</b>
-
-        <label className="ap-active-label">
-          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          {isActive ? 'Активен' : 'Отключён'}
-        </label>
-
-        <div className="ap-variant-actions">
-          <button type="button" onClick={handleUpdateVariant} disabled={isSaving} className="ap-small-action">
-            Сохранить
-          </button>
-        </div>
+      <div className="ap-variant-fields">
+        <label>Размер<input aria-label="Размер варианта" value={size} onChange={e => setSize(e.target.value)} className="ap-input" /></label>
+        <label>Цвет<input aria-label="Цвет варианта" value={color} onChange={e => setColor(e.target.value)} className="ap-input" /></label>
+        <label className="ap-variant-wide">SKU<textarea aria-label="SKU варианта" rows={2} value={sku} onChange={e => setSku(e.target.value)} className="ap-input ap-sku-field" /></label>
       </div>
-
-      <div className="ap-stock-action-row">
-        <select value={movementType} onChange={(e) => setMovementType(e.target.value as 'income' | 'adjustment')} className="ap-input">
-          <option value="income">income — Поступление</option>
-          <option value="adjustment">adjustment — Коррекция</option>
-        </select>
-
-        <input value={qty}     onChange={(e) => setQty(e.target.value)}     type="number" placeholder={movementType === 'income' ? 'Добавить количество' : 'Добавить (+) / убрать (−)' } className="ap-input" />
-        <input value={comment} onChange={(e) => setComment(e.target.value)}              placeholder="Причина изменения остатка" className="ap-input" />
-
-        <button
-          type="button"
-          onClick={handleAddStock}
-          disabled={isSaving || qty.trim().length === 0}
-          className="ap-small-action-dark"
-        >
-          Провести движение
-        </button>
+      <div className="ap-variant-stock">
+        <Metric label="Всего" value={String(variant.total_qty)} />
+        <Metric label="Зарезервировано" value={String(variant.reserved_qty)} />
+        <Metric label="Доступно" value={String(availableQty)} />
+      </div>
+      <div className="ap-variant-save">
+        <label className="ap-active-label"><input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />Вариант доступен</label>
+        <button type="button" onClick={handleUpdateVariant} disabled={isSaving} className="ap-small-action">Сохранить вариант</button>
+      </div>
+      <div className="ap-stock-fields">
+        <label>Изменение остатка<select aria-label="Изменение остатка" value={movementType} onChange={e => setMovementType(e.target.value as 'income' | 'adjustment')} className="ap-input"><option value="income">Поступление</option><option value="adjustment">Корректировка</option></select></label>
+        <label>Количество<input aria-label="Количество для изменения" value={qty} onChange={e => setQty(e.target.value)} type="number" placeholder={movementType === 'income' ? 'Добавить' : '+ добавить / − убрать'} className="ap-input" /></label>
+        <label className="ap-variant-wide">Причина<input value={comment} onChange={e => setComment(e.target.value)} placeholder="Причина изменения остатка" className="ap-input" /></label>
+        <button type="button" onClick={handleAddStock} disabled={isSaving || !qty.trim()} className="ap-small-action-dark ap-variant-wide">Изменить остаток</button>
       </div>
 
       {error   && <div className="ap-error">{error}</div>}

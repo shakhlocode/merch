@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 type AdminProductAction =
+  | 'archive_product'
   | 'create_product'
   | 'update_product'
   | 'create_variant'
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest) {
         { error: 'Не передано действие' },
         { status: 400 }
       )
+    }
+
+    if (body.action === 'archive_product') {
+      if (!body.product_id || typeof body.is_active !== 'boolean') return NextResponse.json({ error: 'Укажите товар и действие архива' }, { status: 400 })
+      const { error } = await supabase.from('products').update({ is_active: body.is_active }).eq('id', body.product_id).select('id').single()
+      return error ? NextResponse.json({ error: error.message }, { status: 400 }) : NextResponse.json({ ok: true })
     }
 
     if (body.action === 'create_product') {

@@ -1,7 +1,8 @@
 'use client'
 
+import EmployeeImport from '@/components/EmployeeImport'
 import AdminShell from '@/components/AdminShell'
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getExportDate, toCsv } from '@/lib/utils'
 
@@ -11,7 +12,8 @@ export type DirectoryEmployee = {
   full_name: string
   business_unit: string | null
   position: string | null
-  hired_at: string
+  external_id: string | null
+  hired_at: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -37,24 +39,18 @@ export default function AdminEmployeesClient({
 
   const [search,       setSearch]       = useState(queryFromUrl)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [unitFilter,   setUnitFilter]   = useState<string>('all')
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingId,    setEditingId]    = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   useEffect(() => { setSearch(queryFromUrl) }, [queryFromUrl])
 
-  const units = useMemo(() => {
-    const set = new Set<string>()
-    employees.forEach((e) => { if (e.business_unit) set.add(e.business_unit) })
-    return [...set].sort((a, b) => a.localeCompare(b, 'ru'))
-  }, [employees])
-
   const totals = useMemo(() => {
     const total    = employees.length
     const active   = employees.filter((e) => e.is_active).length
     const inactive = total - active
-    return { total, active, inactive, units: units.length }
-  }, [employees, units])
+    return { total, active, inactive }
+  }, [employees])
 
   const filtered = useMemo(() => {
     const value = search.trim().toLowerCase()
@@ -65,27 +61,28 @@ export default function AdminEmployeesClient({
         (statusFilter === 'active'   && e.is_active) ||
         (statusFilter === 'inactive' && !e.is_active)
 
-      const unitMatch = unitFilter === 'all' || e.business_unit === unitFilter
 
       const searchMatch =
         value.length === 0 ||
         e.full_name.toLowerCase().includes(value) ||
         e.email.toLowerCase().includes(value) ||
+        e.external_id?.toLowerCase().includes(value) ||
         e.position?.toLowerCase().includes(value) ||
         e.business_unit?.toLowerCase().includes(value)
 
-      return statusMatch && unitMatch && searchMatch
+      return statusMatch && searchMatch
     })
-  }, [employees, search, statusFilter, unitFilter])
+  }, [employees, search, statusFilter])
 
   function handleExportCsv() {
     const rows = filtered.map((e) => ({
       full_name:     e.full_name,
       email:         e.email,
+      external_id:   e.external_id || '',
       business_unit: e.business_unit || '',
       position:      e.position || '',
       hired_at:      formatDate(e.hired_at),
-      status:        e.is_active ? 'Активен' : 'Уволен',
+      status:        e.is_active ? 'Активен' : 'Доступ отключён',
     }))
 
     const csv  = toCsv(rows)
@@ -100,14 +97,10 @@ export default function AdminEmployeesClient({
     URL.revokeObjectURL(url)
   }
 
-  function handleUnitChange(event: ChangeEvent<HTMLSelectElement>) {
-    setUnitFilter(event.target.value)
-  }
-
   const statusTabs: { key: StatusFilter; label: string; count: number }[] = [
     { key: 'all',      label: 'Все',       count: totals.total },
     { key: 'active',   label: 'Активные',  count: totals.active },
-    { key: 'inactive', label: 'Уволенные', count: totals.inactive },
+    { key: 'inactive', label: 'Отключённые', count: totals.inactive },
   ]
 
   return (
@@ -118,14 +111,13 @@ export default function AdminEmployeesClient({
       orderCount={orderCount}
       stockAlertCount={stockAlertCount}
     >
-      <section className="ae-page">
+      <section className="ae-page ae-directory-simple">
 
         {/* Summary */}
         <section className="ae-summary-strip">
           <SummaryMetric label="Всего в реестре" value={String(totals.total)} />
           <SummaryMetric label="Активных"        value={String(totals.active)} />
-          <SummaryMetric label="Уволенных"       value={String(totals.inactive)} />
-          <SummaryMetric label="Подразделений"   value={String(totals.units)} />
+          <SummaryMetric label="Отключённых"       value={String(totals.inactive)} />
         </section>
 
         {/* Status tabs */}
@@ -150,7 +142,7 @@ export default function AdminEmployeesClient({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск: ФИО, email, должность, подразделение"
+              placeholder="Поиск: ФИО, email, идентификатор"
               className="ae-search-input"
             />
             {search.trim().length > 0 && (
@@ -159,11 +151,9 @@ export default function AdminEmployeesClient({
           </div>
 
           <div className="ae-toolbar-right">
-            <select value={unitFilter} onChange={handleUnitChange} className="ae-unit-select">
-              <option value="all">Все подразделения</option>
-              {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-            </select>
 
+
+            <button type="button" className="ae-export-btn" onClick={() => setIsImportOpen(value => !value)}>Загрузить Excel / CSV</button>
             <button
               type="button"
               className="ae-export-btn"
@@ -183,6 +173,7 @@ export default function AdminEmployeesClient({
           </div>
         </section>
 
+        {isImportOpen && <EmployeeImport />}
         {/* Create panel */}
         {isCreateOpen && (
           <EmployeeEditor mode="create" onClose={() => setIsCreateOpen(false)} />
@@ -193,16 +184,14 @@ export default function AdminEmployeesClient({
           <section className="ae-empty-card">
             <div className="ae-empty-mark">∅</div>
             <h2 className="ae-empty-title">Сотрудники не найдены</h2>
-            <p className="ae-empty-text">Измените поиск, статус или подразделение.</p>
+            <p className="ae-empty-text">Измените поиск или статус.</p>
           </section>
         ) : (
           <section className="ae-table-card">
             <div className="ae-table-header">
               <div>Сотрудник</div>
               <div>Email</div>
-              <div>Подразделение</div>
-              <div>Должность</div>
-              <div>Принят</div>
+              <div>Идентификатор</div>
               <div>Статус</div>
               <div />
             </div>
@@ -226,13 +215,11 @@ export default function AdminEmployeesClient({
                       </div>
 
                       <div className="ae-cell-mute">{employee.email}</div>
-                      <div className="ae-cell-ink">{employee.business_unit || '—'}</div>
-                      <div className="ae-cell-mute">{employee.position || '—'}</div>
-                      <div className="ae-cell-mute">{formatDate(employee.hired_at)}</div>
+                      <div className="ae-cell-mute">{employee.external_id || '—'}</div>
 
                       <div>
                         <span className={`ae-badge${employee.is_active ? '' : ' ae-badge-off'}`}>
-                          {employee.is_active ? 'Активен' : 'Уволен'}
+                          {employee.is_active ? 'Активен' : 'Доступ отключён'}
                         </span>
                       </div>
 
@@ -276,15 +263,12 @@ function EmployeeEditor({
 
   const [fullName, setFullName] = useState(employee?.full_name ?? '')
   const [email,    setEmail]    = useState(employee?.email ?? '')
-  const [unit,     setUnit]     = useState(employee?.business_unit ?? '')
-  const [position, setPosition] = useState(employee?.position ?? '')
-  const [hiredAt,  setHiredAt]  = useState(employee?.hired_at?.slice(0, 10) ?? '')
-  const [isActive, setIsActive] = useState(employee?.is_active ?? true)
+  const [externalId, setExternalId] = useState(employee?.external_id ?? '')
 
   const [isSaving, setIsSaving] = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  async function handleSave() {
+  async function handleSave(nextActive = employee?.is_active ?? true) {
     setIsSaving(true)
     setError(null)
 
@@ -297,10 +281,8 @@ function EmployeeEditor({
           id: employee?.id,
           full_name: fullName,
           email,
-          business_unit: unit,
-          position,
-          hired_at: hiredAt,
-          is_active: isActive,
+          external_id: externalId,
+          is_active: nextActive,
         }),
       })
 
@@ -321,7 +303,7 @@ function EmployeeEditor({
       {isCreate && (
         <div className="ae-editor-head">
           <h3 className="ae-editor-title">Новый сотрудник</h3>
-          <p className="ae-editor-hint">Запись попадёт в HR-реестр и синхронизируется с аккаунтом по email.</p>
+          <p className="ae-editor-hint">Активная запись в реестре сразу даёт право заказывать мерч. Аккаунт связывается по email.</p>
         </div>
       )}
 
@@ -344,32 +326,17 @@ function EmployeeEditor({
           {!isCreate && <span className="ae-field-note">Email менять нельзя — это ключ привязки к аккаунту</span>}
         </label>
 
-        <label className="ae-field">
-          Подразделение
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="IT" className="ae-input" />
-        </label>
-
-        <label className="ae-field">
-          Должность
-          <input value={position} onChange={(e) => setPosition(e.target.value)} placeholder="Developer" className="ae-input" />
-        </label>
-
-        <label className="ae-field">
-          Дата найма
-          <input type="date" value={hiredAt} onChange={(e) => setHiredAt(e.target.value)} className="ae-input" />
-        </label>
-
-        <label className="ae-switch">
-          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          Активен (работает в компании)
+        <label className="ae-field">Идентификатор · необязательно
+          <input value={externalId} onChange={e => setExternalId(e.target.value)} className="ae-input" placeholder="Например: EMP-001" />
         </label>
       </div>
 
       {error && <div className="ae-error">{error}</div>}
 
       <div className="ae-editor-actions">
+        {!isCreate && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(!employee?.is_active)}>{employee?.is_active ? 'Отключить доступ' : 'Вернуть доступ'}</button>}
         <button type="button" onClick={onClose} className="ae-cancel-btn">Отмена</button>
-        <button type="button" onClick={handleSave} disabled={isSaving} className="ae-save-btn">
+        <button type="button" onClick={() => handleSave()} disabled={isSaving} className="ae-save-btn">
           {isSaving ? 'Сохраняем...' : isCreate ? 'Добавить' : 'Сохранить'}
         </button>
       </div>
@@ -400,7 +367,8 @@ function getInitials(name: string, email: string) {
   return `${parts[0]?.[0] ?? 'U'}${parts[1]?.[0] ?? ''}`.toUpperCase()
 }
 
-function formatDate(value: string) {
+function formatDate(value: string | null) {
+  if (!value) return '—'
   return new Date(value).toLocaleDateString('ru-RU', {
     timeZone: 'Asia/Tashkent',
     day:   'numeric',
