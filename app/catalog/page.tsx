@@ -139,7 +139,6 @@ export default async function CatalogPage() {
       products={products}
       userEmail={user.email ?? null}
       userName={employee?.full_name ?? null}
-      userDepartment={employee?.business_unit ?? employee?.department ?? null}
       isAdmin={Boolean(employee?.is_admin)}
       checkoutDefaults={{
         deliveryType: 'office',

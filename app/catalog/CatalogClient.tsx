@@ -2,7 +2,7 @@
 
 import AppNav from '@/components/AppNav'
 import ProductImage from '@/components/ProductImage'
-import { decline, getProductLetter } from '@/lib/utils'
+import { getProductLetter } from '@/lib/utils'
 import { useMemo, useState } from 'react'
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -57,7 +57,6 @@ type CatalogClientProps = {
   products: CatalogProduct[]
   userEmail: string | null
   userName: string | null
-  userDepartment: string | null
   isAdmin: boolean
   checkoutDefaults: CheckoutDefaults
   merchAccess: MerchAccess
@@ -66,13 +65,6 @@ type CatalogClientProps = {
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  Constants                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
-
-const deliveryLabels: Record<DeliveryType, string> = {
-  office:  'В офис',
-  pvz:     'ПВЗ / филиал',
-  pickup:  'Самовывоз',
-  courier: 'Курьер',
-}
 
 const MAX_UNIQUE_PRODUCTS = 3
 
@@ -84,7 +76,6 @@ export default function CatalogClient({
   products,
   userEmail,
   userName,
-  userDepartment,
   isAdmin,
   checkoutDefaults,
   merchAccess,
@@ -93,7 +84,6 @@ export default function CatalogClient({
   const [cart, setCart] = useState<CartItem[]>([])
 
   /* Checkout form */
-  const [deliveryType,    setDeliveryType]    = useState<DeliveryType>(checkoutDefaults.deliveryType)
   const [deliveryAddress, setDeliveryAddress] = useState(checkoutDefaults.deliveryAddress)
   const [phone,           setPhone]           = useState(checkoutDefaults.phone)
   const [comment,         setComment]         = useState('')
@@ -139,7 +129,6 @@ export default function CatalogClient({
   const totalQty      = cart.length
   const firstName     = getUserFirstName(userName, userEmail)
   const initials      = getInitials(userName, userEmail)
-  const categoryCount = Math.max(0, categories.length - 1)
 
   /* Cart actions */
   function isProductInCart(productId: string) {
@@ -226,7 +215,7 @@ export default function CatalogClient({
   /* ── Render ───────────────────────────────────────────────────────────── */
 
   return (
-    <div>
+    <div className="catalog-page">
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
       <header className="site-head">
         <div className="site-head-glass" aria-hidden="true" />
@@ -240,7 +229,6 @@ export default function CatalogClient({
             <span className="brand-name">
               uzum <span className="brand-name-soft">мерч</span>
             </span>
-            <span className="brand-sub">внутренний портал</span>
           </a>
 
           <AppNav isAdmin={isAdmin} />
@@ -264,7 +252,6 @@ export default function CatalogClient({
               <span className="head-user-avatar">{initials}</span>
               <span className="head-user-info">
                 <span className="head-user-name">{firstName}</span>
-                <span className="head-user-team">{userEmail}</span>
               </span>
             </a>
 
@@ -277,88 +264,28 @@ export default function CatalogClient({
       {/* ── CATALOG BODY ────────────────────────────────────────────────── */}
       <div className="catalog">
 
-        {/* Hero */}
-        <section className="hero">
-          <div className="hero-greeting">
-            <span className="kicker">Корпоративный магазин · uzum</span>
-            <h1 className="display">
-              Привет, {firstName}.<br />
-              <em>Что-нибудь</em> подберём?
-            </h1>
-            <p className="lead">
-              Здесь корпоративный мерч, канцелярия и подарочные наборы.
-              Бесплатно — нужно только оставить заявку.{' '}
-              Можно выбрать <b>до трех уникальных позиций</b>; разные размеры одного товара считаются одной позицией.
-            </p>
-            {!merchAccess.isAllowed && (
-              <div className="form-error form-error-hero">
-                {getMerchAccessMessage(merchAccess)}
-              </div>
-            )}
-            <div className="hero-actions">
-              <button
-                type="button"
-                className="btn btn-accent btn-lg"
-                onClick={() =>
-                  document.getElementById('catalog-grid')
-                    ?.scrollIntoView({ behavior: 'smooth' })
-                }
-              >
-                Посмотреть каталог ↓
-              </button>
-              <a href="/orders" className="btn btn-ghost btn-lg">
-                Мои заказы →
-              </a>
-            </div>
-          </div>
-
-          <aside className="hero-quota">
-            <span className="kicker">Профиль</span>
-            <div className="profile-mini">
-              <div className="profile-mini-row">
-                <span>ФИО</span>
-                <b>{userName || '—'}</b>
-              </div>
-              <div className="profile-mini-row">
-                <span>Email</span>
-                <b>{userEmail || '—'}</b>
-              </div>
-              {userDepartment && (
-                <div className="profile-mini-row">
-                  <span>Отдел</span>
-                  <b>{userDepartment}</b>
-                </div>
-              )}
-              <div className="profile-mini-row">
-                <span>Город / офис</span>
-                <b>{deliveryAddress || '—'}</b>
-              </div>
-            </div>
-            <p className="quota-hint">
-              Доставка по умолчанию — в офис. Изменить можно при оформлении заказа.
-            </p>
-          </aside>
-        </section>
-
-        {/* Category nav */}
-        <nav className="cat-nav" aria-label="Категории">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              type="button"
-              className={`cat-pill${selectedCategory === cat ? ' is-on' : ''}`}
-              onClick={() => setSelectedCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
-        </nav>
-
-        {/* Catalog body: filters + grid */}
+        <h1 className="sr-only">Каталог Uzum Merch Shop</h1>
+        {/* Filters, products and cart */}
         <div className="catalog-body">
 
           {/* Filters sidebar */}
           <aside className="filters">
+            {/* Category nav */}
+            <nav className="cat-nav" aria-label="Категории">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`cat-pill${selectedCategory === cat ? ' is-on' : ''}`}
+                  aria-pressed={selectedCategory === cat}
+              onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </nav>
+
+
             <div className="filters-block">
               <label className="filters-label" htmlFor="catalog-search">Поиск</label>
               <input
@@ -370,33 +297,26 @@ export default function CatalogClient({
               />
             </div>
 
-            <div className="filters-note">
-              <span className="kicker">Правила</span>
-              <p>Один товар = одна штука. Нельзя заказать несколько единиц или несколько вариантов одного товара.</p>
-              <p>Максимум — 3 уникальные позиции. Мерч доступен сотрудникам со стажем больше 3 месяцев.</p>
-            </div>
-
-            <div className="filters-note">
-              <span className="kicker">Каталог</span>
-              <p>
-                Сейчас доступно {products.length}{' '}
-                {decline(products.length, ['товар', 'товара', 'товаров'])} в{' '}
-                {categoryCount}{' '}
-                {decline(categoryCount, ['категории', 'категориях', 'категориях'])}.
-              </p>
-            </div>
+            <details className="filters-note catalog-rules" open>
+              <summary className="kicker">Правила</summary>
+              <ol>
+                <li>До 3 уникальных товаров.</li>
+                <li>По 1 штуке каждого товара.</li>
+                <li>Один товар — один размер и цвет.</li>
+                <li>Получение — в офисе. Для удалённых сотрудников — по согласованию.</li>
+              </ol>
+            </details>
+            {!merchAccess.isAllowed && <div className="form-error" role="status">{getMerchAccessMessage(merchAccess)}</div>}
           </aside>
 
           {/* Grid area */}
           <main className="grid-wrap">
             <div className="grid-head">
-              <div className="grid-count">
-                <span className="num">{filteredProducts.length}</span>{' '}
-                {decline(filteredProducts.length, ['товар', 'товара', 'товаров'])}
-              </div>
+              <div className="grid-count" aria-live="polite">Выбрано <b>{totalQty}</b> из <b className="accent">{MAX_UNIQUE_PRODUCTS}</b></div>
               <div className="grid-sort">
-                <span className="kicker">Сортировка</span>
+                <label htmlFor="catalog-sort">Сортировка</label>
                 <select
+                  id="catalog-sort"
                   className="sort-select"
                   value={sortMode}
                   onChange={e => setSortMode(e.target.value as SortMode)}
@@ -428,10 +348,13 @@ export default function CatalogClient({
                 )}
               </div>
 
+            </div>
+          </main>
+
               <CartAside
+                key={checkoutSuccess ?? 'cart'}
                 cart={cart}
                 totalQty={totalQty}
-                deliveryType={deliveryType}
                 deliveryAddress={deliveryAddress}
                 phone={phone}
                 comment={comment}
@@ -442,7 +365,6 @@ export default function CatalogClient({
                 checkoutSuccess={checkoutSuccess}
                 merchAccess={merchAccess}
                 onRemove={removeFromCart}
-                onDeliveryTypeChange={setDeliveryType}
                 onDeliveryAddressChange={setDeliveryAddress}
                 onPhoneChange={setPhone}
                 onCommentChange={setComment}
@@ -450,9 +372,6 @@ export default function CatalogClient({
                 onCountryChange={setCountry}
                 onCheckout={handleCheckout}
               />
-            </div>
-          </main>
-
         </div>{/* /catalog-body */}
       </div>{/* /catalog */}
     </div>
@@ -554,7 +473,6 @@ function ProductCard({
 function CartAside({
   cart,
   totalQty,
-  deliveryType,
   deliveryAddress,
   phone,
   comment,
@@ -574,7 +492,6 @@ function CartAside({
 }: {
   cart: CartItem[]
   totalQty: number
-  deliveryType: DeliveryType
   deliveryAddress: string
   phone: string
   comment: string
@@ -585,7 +502,6 @@ function CartAside({
   checkoutSuccess: string | null
   merchAccess: MerchAccess
   onRemove: (variantId: string) => void
-  onDeliveryTypeChange: (value: DeliveryType) => void
   onDeliveryAddressChange: (value: string) => void
   onPhoneChange: (value: string) => void
   onCommentChange: (value: string) => void
@@ -593,27 +509,24 @@ function CartAside({
   onCountryChange: (value: string) => void
   onCheckout: () => void
 }) {
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   return (
     <aside className="cart-aside" id="cart-aside">
       <div className="cart-header">
         <div>
           <p className="aside-title">Корзина</p>
-          <p className="cart-subtitle">
-            {cart.length > 0
-              ? `${cart.length} ${decline(cart.length, ['товар', 'товара', 'товаров'])}`
-              : 'Пока пусто'}
-          </p>
         </div>
-        <span className="cart-counter">{totalQty}</span>
+        <span className="cart-counter">{totalQty} / {MAX_UNIQUE_PRODUCTS} позиции</span>
       </div>
 
       {checkoutSuccess && <CheckoutSuccessCard message={checkoutSuccess} />}
 
       {cart.length === 0 ? (
         <div className="cart-empty">
-          <div className="cart-empty-mark">+</div>
+          <svg className="cart-empty-art" width="112" height="112" viewBox="0 0 112 112" fill="none" aria-hidden="true"><path d="m20 44 36-15 36 15-36 16Z" fill="#e9ddff"/><path d="M20 44v39l36 17V60Z" fill="#f1e9ff"/><path d="M92 44v39l-36 17V60Z" fill="#e3d3ff"/><path d="m20 44-12 16 35 15 13-15 13 15 35-15-12-16-36 16Z" fill="#f5efff"/><circle cx="56" cy="26" r="15" fill="#eee4ff"/><path d="M56 19v14m-7-7h14" stroke="#7000ff" strokeWidth="2" strokeLinecap="round"/></svg>
+          <strong>Пока пусто</strong>
           <p className="cart-empty-text">
-            Добавьте товары из каталога, чтобы оформить заявку.
+            Добавьте от 1 до 3 товаров из каталога.
           </p>
         </div>
       ) : (
@@ -630,7 +543,10 @@ function CartAside({
                 <button
                   type="button"
                   className="cart-line-remove"
-                  onClick={() => onRemove(item.variant.id)}
+                  onClick={() => {
+                    if (cart.length === 1) setIsCheckoutOpen(false)
+                    onRemove(item.variant.id)
+                  }}
                   aria-label={`Удалить ${item.product.name}`}
                 >
                   ×
@@ -639,14 +555,15 @@ function CartAside({
             ))}
           </div>
 
-          <div className="cart-summary">
-            <div className="sum-row"><span>Товаров</span><b>{cart.length}</b></div>
-            <div className="sum-row"><span>Лимит</span><b>{cart.length}/{MAX_UNIQUE_PRODUCTS}</b></div>
-            <div className="sum-row"><span>Количество</span><b>{cart.length} шт.</b></div>
-            <div className="sum-row"><span>Получение</span><b>{deliveryLabels[deliveryType]}</b></div>
-          </div>
+          {!isCheckoutOpen && (
+            <div className="cart-next-step">
+              <p>Контакты и способ получения укажете при оформлении.</p>
+              <button type="button" className="checkout-btn" disabled={!merchAccess.isAllowed} onClick={() => setIsCheckoutOpen(true)}>Оформить заказ →</button>
+            </div>
+          )}
+          {isCheckoutOpen && <div className="cart-form">
+            <button type="button" className="login-text-button" disabled={isSubmitting} onClick={() => setIsCheckoutOpen(false)}>← Назад к выбору</button>
 
-          <div className="cart-form">
             <p>Получение в офисе. Для удалённых сотрудников получение согласует ответственный администратор.</p>
             <label className="form-label">
               Адрес / офис / точка получения
@@ -717,9 +634,10 @@ function CartAside({
             >
               {isSubmitting ? 'Оформляем…' : 'Оформить заказ'}
             </button>
-          </div>
+          </div>}
         </>
       )}
+      {cart.length === 0 && <div className="cart-next-step"><p>Контакты и способ получения укажете при оформлении.</p><button type="button" className="checkout-btn" disabled>Оформить заказ →</button></div>}
     </aside>
   )
 }

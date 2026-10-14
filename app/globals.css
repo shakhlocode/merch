@@ -3925,3 +3925,68 @@ input:focus, select:focus, textarea:focus {
   .login-welcome .login-step b { width: 44px; height: 44px; font-size: 26px; }
   .login-welcome .login-mode-tab { font-size: 13px; }
 }
+
+/* Catalog: products first, with filters and a compact checkout summary. */
+.catalog-page .catalog { padding-top: 28px; }
+.catalog-page .catalog-body { grid-template-columns: 230px minmax(0, 1fr) 250px; gap: 24px; }
+.catalog-page .cat-nav { margin: 0; gap: 6px; }
+.catalog-page .cat-pill { padding: 9px 12px; font-size: 13px; }
+.catalog-page .filters { gap: 18px; }
+.catalog-page .filters-label { text-transform: none; letter-spacing: 0; font-size: 14px; }
+.catalog-page .grid-head { min-height: 36px; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+.catalog-page .grid-count { color: var(--ink); font-size: 16px; }
+.catalog-page .grid-count b { font-size: 19px; }
+.catalog-page .grid-count .accent { color: var(--accent); }
+.catalog-page .grid-sort { font-size: 12px; color: var(--inkMute); gap: 8px; }
+.catalog-page .grid-layout { display: block; }
+.catalog-page .grid { gap: 12px; }
+.catalog-page .grid-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.catalog-page .card-body { padding: 12px; }
+.catalog-page .card-name { font-size: 16px; }
+.catalog-page .card-top { gap: 6px; flex-wrap: wrap; }
+.catalog-page .card-kind { font-size: 10px; }
+.catalog-page .card-btn { height: 36px; font-size: 13px; }
+.catalog-page .card-desc { min-height: 38px; }
+.catalog-page .variant-select { font-size: 12px; height: 34px; padding: 0 8px; }
+.catalog-page .variant-label { font-size: 10px; }
+.catalog-page .cart-aside { padding: 18px; }
+.catalog-page .cart-header { align-items: center; gap: 8px; }
+.catalog-page .cart-header .aside-title { font-size: 18px; margin: 0; }
+.catalog-page .cart-counter { border-radius: 999px; background: var(--chip); color: var(--accent); width: auto; padding: 0 10px; font-size: 11px; height: 28px; }
+.catalog-page .cart-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0; }
+.catalog-page .cart-empty-text { font-size: 13px; }
+.cart-next-step { padding-top: 16px; border-top: 1px solid var(--border); }
+.cart-next-step p { margin: 0 0 18px; font-size: 12px; color: var(--inkMute); line-height: 1.5; }
+.catalog-rules summary { cursor: pointer; }
+.catalog-rules ol { list-style: none; counter-reset: catalog-rule; padding: 0; margin: 14px 0 0; display: grid; gap: 14px; }
+.catalog-rules li { counter-increment: catalog-rule; display: grid; grid-template-columns: 24px 1fr; gap: 10px; line-height: 1.5; }
+.catalog-rules li::before { content: counter(catalog-rule); width: 24px; height: 24px; border-radius: 50%; background: white; color: var(--accent); display: grid; place-items: center; }
+@media (max-width: 1200px) {
+  .catalog-page .catalog-body { grid-template-columns: 190px minmax(0, 1fr) 230px; gap: 18px; }
+  .catalog-page .grid-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .catalog-page .catalog-body { grid-template-columns: minmax(0, 1fr) 250px; }
+  .catalog-page .filters { grid-column: 1 / -1; flex-direction: row; margin-bottom: 4px; align-items: start; }
+  .catalog-page .cat-nav { flex: 1 1 100%; }
+  .catalog-page .catalog-rules { flex: 1 1 250px; }
+  .catalog-page .cart-aside { position: sticky; top: 140px; }
+}
+@media (max-width: 640px) {
+  .catalog-page .catalog { padding-top: 18px; }
+  .catalog-page .catalog-body { grid-template-columns: minmax(0, 1fr); }
+  .catalog-page .filters { gap: 12px; }
+  .catalog-page .filters-block { flex: 1 1 100%; }
+  .catalog-page .catalog-rules { flex: 1 1 100%; padding: 12px; }
+  .catalog-page .catalog-rules ol { grid-template-columns: 1fr 1fr; font-size: 11px; gap: 10px; }
+  .catalog-page .catalog-rules li { gap: 6px; }
+  .catalog-page .cart-aside { position: static; }
+  .catalog-page .grid-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .catalog-page .card-body { padding: 10px; }
+  .catalog-page .card-name { font-size: 15px; }
+  .catalog-page .grid-sort label { display: none; }
+}
+.catalog-page .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.catalog-page .empty { grid-column: 1 / -1; }
+.catalog-page .cat-pill { padding-inline: 10px; font-size: 12px; }
+.catalog-page .catalog-rules { display: block; }
