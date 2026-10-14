@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 
-type LoginMode = 'password' | 'email'
+type LoginMode = 'password' | 'email' | 'reset'
 
 export default function LoginPage() {
   return (
@@ -22,6 +22,7 @@ function LoginContent() {
   const [mode, setMode] = useState<LoginMode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
   const [sentEmail, setSentEmail] = useState<string | null>(null)
@@ -88,7 +89,7 @@ function LoginContent() {
 
       if (signInError) {
         setError(
-          'Не удалось войти по паролю. Если это первый вход, получите письмо.'
+          'Не удалось войти по паролю. Если это первый вход, нажмите «Зарегистрироваться».'
         )
         return
       }
@@ -134,10 +135,12 @@ function LoginContent() {
     try {
       const redirectTo = getEmailRedirectTo()
 
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: { emailRedirectTo: redirectTo },
-      })
+      const { error: signInError } = mode === 'reset'
+        ? await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo })
+        : await supabase.auth.signInWithOtp({
+            email: normalizedEmail,
+            options: { emailRedirectTo: redirectTo },
+          })
 
       if (signInError) {
         setError(signInError.message || 'Не удалось отправить письмо')
@@ -156,7 +159,7 @@ function LoginContent() {
 
   if (!isMounted) {
     return (
-      <main className="login-page">
+      <main className="login-page login-welcome">
         <section className="login-shell">
           <div className="login-left" />
           <section className="login-card" aria-busy="true" />
@@ -166,7 +169,7 @@ function LoginContent() {
   }
 
   return (
-    <main className="login-page">
+    <main className="login-page login-welcome">
       <section className="login-shell">
         <div className="login-left">
           <a href="/login" className="login-brand">
@@ -178,48 +181,51 @@ function LoginContent() {
           </a>
 
           <div className="login-hero">
-            <div className="kicker">Внутренний портал</div>
-            <h1 className="login-title">
-              Корпоративный мерч<br />для сотрудников Uzum
-            </h1>
-            <p className="login-lead">
-              Первый вход подтвердите через письмо, создайте пароль и дальше
-              входите без ожидания ссылки.
-            </p>
+            <h1 className="login-title">Uzum Merch Shop</h1>
+            <p className="login-lead">Внутренний портал для выбора и получения корпоративного мерча Uzum.</p>
           </div>
-
-          <div className="login-steps">
-            <LoginStep value="1" label="Первый вход по email" />
-            <LoginStep value="2" label="Создание пароля" />
-            <LoginStep value="3" label="Быстрый вход" />
+          <section className="login-guide" aria-labelledby="login-guide-title">
+            <h2 id="login-guide-title">Как начать пользоваться Uzum Merch Shop</h2>
+            <ol className="login-steps">
+              <LoginStep value="1" label="Зарегистрируйтесь" description="Введите корпоративную почту и подтвердите доступ через письмо. Откройте ссылку в том же браузере, где начали регистрацию." />
+              <LoginStep value="2" label="Создайте пароль" description="После подтверждения почты придумайте пароль для аккаунта." />
+              <LoginStep value="3" label="Войдите в магазин" description="Используйте email и пароль для следующих входов." />
+            </ol>
+          </section>
+          <div className="login-help">
+            <span className="login-help-icon" aria-hidden="true">?</span>
+            <div><strong>Нужна помощь?</strong><br /><a href="mailto:s.xamrayeva@uzum.com">Свяжитесь с нами</a></div>
           </div>
         </div>
 
         <section className="login-card">
           <div className="login-card-top">
-            <div className="login-card-icon">↗</div>
             <div>
-              <h2 className="login-card-title">Вход</h2>
+              <h2 className="login-card-title">{mode === 'reset' ? 'Восстановление пароля' : 'Вход в Uzum Merch Shop'}</h2>
               <p className="login-card-text">
-                Войдите по паролю или получите письмо для первого входа.
+                {mode === 'reset' ? 'Отправим на вашу почту ссылку для создания нового пароля.' : 'Войдите в аккаунт или зарегистрируйтесь через корпоративную почту.'}
               </p>
             </div>
           </div>
 
-          <div className="login-mode-tabs" role="tablist" aria-label="Способ входа">
+          <div className="login-mode-tabs" aria-label="Вход и регистрация">
             <button
               type="button"
               className={`login-mode-tab${mode === 'password' ? ' is-active' : ''}`}
               onClick={() => switchMode('password')}
+              aria-pressed={mode === 'password'}
+              disabled={isSubmitting}
             >
-              Пароль
+              Войти
             </button>
             <button
               type="button"
               className={`login-mode-tab${mode === 'email' ? ' is-active' : ''}`}
               onClick={() => switchMode('email')}
+              aria-pressed={mode === 'email'}
+              disabled={isSubmitting}
             >
-              Письмо
+              Зарегистрироваться
             </button>
           </div>
 
@@ -228,12 +234,11 @@ function LoginContent() {
               <div className="login-success-icon">✓</div>
               <h3 className="login-success-title">Письмо отправлено</h3>
               <p className="login-success-text">
-                Мы отправили ссылку для входа на адрес:
+                {mode === 'reset' ? 'Ссылка для восстановления пароля отправлена на адрес:' : 'Ссылка для подтверждения почты отправлена на адрес:'}
               </p>
               <div className="login-email-box">{sentEmail}</div>
               <p className="login-success-hint">
-                Откройте письмо и перейдите по ссылке. После первого входа
-                приложение попросит создать пароль.
+                Откройте письмо в том же браузере и перейдите по ссылке, чтобы создать пароль. Если письма нет, проверьте папку «Спам».
               </p>
               <button
                 type="button"
@@ -249,6 +254,7 @@ function LoginContent() {
                 Email
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@uzum.com"
@@ -259,13 +265,17 @@ function LoginContent() {
 
               <label className="login-label">
                 Пароль
-                <input
-                  type="password"
+                <span className="login-password-field"><input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Введите пароль"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
                   className="login-input"
-                />
+                /><button type="button" className="login-password-toggle" aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+                </button></span>
               </label>
 
               {error && <div className="login-error">{error}</div>}
@@ -280,10 +290,11 @@ function LoginContent() {
 
               <button
                 type="button"
-                onClick={() => switchMode('email')}
-                className="login-btn-secondary"
+                onClick={() => switchMode('reset')}
+                disabled={isSubmitting}
+                className="login-text-button"
               >
-                Первый вход или забыли пароль?
+                Забыли пароль?
               </button>
             </form>
           ) : (
@@ -292,6 +303,7 @@ function LoginContent() {
                 Email
                 <input
                   type="email"
+                  required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@uzum.com"
@@ -307,7 +319,7 @@ function LoginContent() {
                 disabled={isSubmitting}
                 className="login-btn-primary"
               >
-                {isSubmitting ? 'Отправляем...' : 'Получить письмо'}
+                {isSubmitting ? 'Отправляем...' : mode === 'reset' ? 'Отправить ссылку' : 'Зарегистрироваться'}
               </button>
             </form>
           )}
@@ -321,12 +333,12 @@ function LoginContent() {
   )
 }
 
-function LoginStep({ value, label }: { value: string; label: string }) {
+function LoginStep({ value, label, description }: { value: string; label: string; description: string }) {
   return (
-    <div className="login-step">
-      <b>{value}</b>
-      <span>{label}</span>
-    </div>
+    <li className="login-step">
+      <b aria-hidden="true">{value}</b>
+      <div><strong>{label}</strong><p>{description}</p></div>
+    </li>
   )
 }
 

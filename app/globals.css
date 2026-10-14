@@ -3874,3 +3874,54 @@ input:focus, select:focus, textarea:focus {
   .issue-panel { padding: 16px; }
   .admin-topbar-actions { flex-wrap: wrap; }
 }
+
+/* Welcome screen: keep the shared password-creation styles separate. */
+.login-welcome .login-shell { max-width: 1200px; grid-template-columns: 1fr 1fr; gap: 40px; }
+.login-welcome .login-left { background: rgba(255,255,255,.94); padding: 32px; min-height: 660px; border-radius: 24px; }
+.login-welcome .login-hero { margin-top: 32px; }
+.login-welcome .login-title { font-size: clamp(30px, 3.4vw, 46px); line-height: 1.1; margin: 0 0 12px; }
+.login-welcome .login-lead { font-size: 15px; font-weight: 500; }
+.login-guide { margin: 32px 0 24px; }
+.login-guide h2 { font-size: 19px; line-height: 1.4; margin: 0 0 22px; }
+.login-welcome .login-steps { margin: 0; padding: 0; list-style: none; grid-template-columns: 1fr; gap: 24px; }
+.login-welcome .login-step { min-height: 0; display: grid; grid-template-columns: 56px 1fr; gap: 20px; align-items: start; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.login-welcome .login-step b { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--primary-soft); color: var(--accent); font-size: 30px; }
+.login-step strong { display: block; font-size: 15px; margin: 1px 0 5px; }
+.login-step p, .login-help p { margin: 0; color: var(--inkMute); font-size: 14px; line-height: 1.5; }
+.login-help { display: flex; gap: 18px; align-items: center; margin-top: auto; border-top: 1px solid var(--border); padding-top: 22px; font-size: 14px; }
+.login-help-icon { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--accent); border-radius: 50%; color: var(--accent); font-weight: 800; flex-shrink: 0; }
+.login-help a { display: inline-block; color: var(--accent); margin-top: 5px; }
+.login-welcome .login-card { border-radius: 24px; padding: 48px; }
+.login-welcome .login-card-title { font-size: 28px; line-height: 1.2; }
+.login-welcome .login-card-text { font-weight: 500; line-height: 1.6; }
+.login-welcome .login-mode-tabs { padding: 0; gap: 0; background: transparent; border-radius: 0; border-bottom: 1px solid var(--border); margin: 10px 0 28px; }
+.login-welcome .login-mode-tab { border-radius: 0; min-height: 48px; font-weight: 600; border-bottom: 2px solid transparent; }
+.login-welcome .login-mode-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); box-shadow: none; }
+.login-welcome .login-mode-tab:disabled { cursor: wait; opacity: .65; }
+.login-welcome .login-form { min-height: 0; gap: 24px; }
+.login-welcome .login-label { font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: 0; font-weight: 600; }
+.login-welcome .login-input { height: 54px; border-radius: 12px; font-weight: 500; }
+.login-welcome .login-btn-primary { border-radius: 12px; min-height: 54px; font-size: 16px; font-weight: 600; box-shadow: none; }
+.login-password-field { position: relative; display: block; }
+.login-password-field .login-input { padding-right: 52px; }
+.login-password-toggle { position: absolute; right: 4px; top: 4px; width: 46px; height: 46px; display: grid; place-items: center; border: 0; background: transparent; color: var(--inkMute); cursor: pointer; border-radius: 8px; }
+.login-text-button { border: 0; background: transparent; color: var(--accent); text-align: left; padding: 0; min-height: 32px; width: fit-content; font-size: 14px; cursor: pointer; font-weight: 600; }
+@media (max-width: 960px) {
+  .login-welcome .login-shell { gap: 22px; }
+  .login-welcome .login-card { padding: 28px; }
+  .login-welcome .login-left { padding: 28px; }
+}
+@media (max-width: 860px) {
+  .login-welcome .login-shell { grid-template-columns: 1fr; max-width: 580px; }
+  .login-welcome .login-left { display: flex; min-height: 0; }
+  .login-welcome .login-card { grid-row: 2; }
+  .login-welcome .login-hero { margin-top: 24px; }
+}
+@media (max-width: 520px) {
+  .login-welcome .login-left, .login-welcome .login-card { padding: 24px 20px; }
+  .login-welcome .login-title { font-size: 32px; }
+  .login-welcome .login-card-title { font-size: 25px; }
+  .login-welcome .login-step { gap: 14px; grid-template-columns: 44px 1fr; }
+  .login-welcome .login-step b { width: 44px; height: 44px; font-size: 26px; }
+  .login-welcome .login-mode-tab { font-size: 13px; }
+}
