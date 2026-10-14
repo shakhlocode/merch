@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (user.email?.endsWith('@guest.merch.invalid')) return NextResponse.json({ error: 'Для личного приглашения пароль не используется. Вход сохраняется в этом браузере.' }, { status: 403 })
     const body = (await request.json()) as PasswordPayload
     const password = body.password ?? ''
 

@@ -1,5 +1,9 @@
 'use client'
 
+import InvitationQueue from '@/components/InvitationQueue'
+import InvitationChoice, { type InvitationChoiceValue } from '@/components/InvitationChoice'
+import InvitationResults from '@/components/InvitationResults'
+import type { InvitationResult } from '@/lib/invitations'
 import EmployeeAccessFields from '@/components/EmployeeAccessFields'
 import { accessUntil, directoryAccessOpen, type AccessMode } from '@/lib/employee-access'
 import EmployeeImport from '@/components/EmployeeImport'
@@ -14,6 +18,9 @@ export type DirectoryEmployee = {
   full_name: string
   business_unit: string | null
   position: string | null
+  invitation_required: boolean
+  invitation_user_id: string | null
+  invitation_one_order: boolean
   access_mode: AccessMode
   access_expires_at: string | null
   access_used_at: string | null
@@ -44,6 +51,7 @@ export default function AdminEmployeesClient({
 
   const [search,       setSearch]       = useState(queryFromUrl)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [inviteResults, setInviteResults] = useState<InvitationResult[]>([])
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [editingId,    setEditingId]    = useState<string | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -182,9 +190,11 @@ export default function AdminEmployeesClient({
         </section>
 
         {isImportOpen && <EmployeeImport />}
+        <InvitationQueue />
+        <InvitationResults items={inviteResults} />
         {/* Create panel */}
         {isCreateOpen && (
-          <EmployeeEditor mode="create" onClose={() => setIsCreateOpen(false)} />
+          <EmployeeEditor onInvitations={setInviteResults} mode="create" onClose={() => setIsCreateOpen(false)} />
         )}
 
         {/* Table / empty */}
@@ -222,12 +232,12 @@ export default function AdminEmployeesClient({
                         </div>
                       </div>
 
-                      <div className="ae-cell-mute">{employee.email}</div>
+                      <div className="ae-cell-mute">{employee.email.endsWith('.merch.invalid') ? 'Без почты · личная ссылка' : employee.email}</div>
                       <div className="ae-cell-mute">{employee.external_id || '—'}</div>
 
                       <div>
                         <span className={`ae-badge${directoryAccessOpen(employee) ? '' : ' ae-badge-off'}`}>
-                          {!employee.is_active ? 'Отключён' : employee.access_mode === 'one_order' ? (employee.access_used_at ? 'Заказ получен · доступ закрыт' : 'До получения заказа') : employee.access_mode === 'until_date' ? `${directoryAccessOpen(employee) ? 'До' : 'Истёк'} ${formatDate(accessUntil(employee.access_expires_at))}` : 'Бессрочный'}
+                          {employee.invitation_required && !employee.invitation_user_id ? 'Ожидает приглашения' : !employee.is_active ? 'Отключён' : (employee.access_mode === 'one_order' || employee.invitation_one_order) ? (employee.access_used_at ? 'Заказ получен · доступ закрыт' : 'До получения заказа') : employee.access_mode === 'until_date' ? `${directoryAccessOpen(employee) ? 'До' : 'Истёк'} ${formatDate(accessUntil(employee.access_expires_at))}` : 'Бессрочный'}
                         </span>
                       </div>
 
@@ -236,6 +246,7 @@ export default function AdminEmployeesClient({
 
                     {isEditing && (
                       <EmployeeEditor
+                        onInvitations={setInviteResults}
                         mode="edit"
                         employee={employee}
                         onClose={() => setEditingId(null)}
@@ -261,7 +272,9 @@ function EmployeeEditor({
   mode,
   employee,
   onClose,
+  onInvitations,
 }: {
+  onInvitations: (items: InvitationResult[]) => void
   mode: 'create' | 'edit'
   employee?: DirectoryEmployee
   onClose: () => void
@@ -270,7 +283,8 @@ function EmployeeEditor({
   const isCreate = mode === 'create'
 
   const [fullName, setFullName] = useState(employee?.full_name ?? '')
-  const [email,    setEmail]    = useState(employee?.email ?? '')
+  const [email,    setEmail]    = useState(employee?.email?.endsWith('.merch.invalid') ? '' : employee?.email ?? '')
+  const [invitation, setInvitation] = useState<InvitationChoiceValue>('none')
   const [externalId, setExternalId] = useState(employee?.external_id ?? '')
 
   const [accessMode, setAccessMode] = useState<AccessMode>(employee?.access_mode ?? 'unlimited')
@@ -290,8 +304,9 @@ function EmployeeEditor({
           action: isCreate ? 'create_employee' : 'update_employee',
           id: employee?.id,
           full_name: fullName,
-          email,
+          email: !isCreate && employee?.email?.endsWith('.merch.invalid') ? employee.email : email,
           external_id: externalId,
+          invitation,
           access_mode: accessMode,
           access_until: accessDate,
           renew_access: renew,
@@ -302,6 +317,7 @@ function EmployeeEditor({
       const result = await response.json()
       if (!response.ok) { setError(result.error || 'Не удалось сохранить'); return }
 
+      if (result.invitations?.length) onInvitations(result.invitations)
       onClose()
       router.refresh()
     } catch (e) {
@@ -316,7 +332,7 @@ function EmployeeEditor({
       {isCreate && (
         <div className="ae-editor-head">
           <h3 className="ae-editor-title">Новый сотрудник</h3>
-          <p className="ae-editor-hint">Активная запись в реестре сразу даёт право заказывать мерч. Аккаунт связывается по email.</p>
+          <p className="ae-editor-hint">Без приглашения аккаунт связывается по email. С приглашением сотрудник получит доступ после его активации.</p>
         </div>
       )}
 
@@ -327,7 +343,7 @@ function EmployeeEditor({
         </label>
 
         <label className="ae-field">
-          Email
+          {invitation === 'code' ? 'Email · необязательно' : 'Email'}
           <input
             type="email"
             value={email}
@@ -339,17 +355,18 @@ function EmployeeEditor({
           {!isCreate && <span className="ae-field-note">Email менять нельзя — это ключ привязки к аккаунту</span>}
         </label>
 
-        <label className="ae-field">Идентификатор · необязательно
+        <label className="ae-field">{invitation === 'code' ? 'Идентификатор · обязателен для личной ссылки' : 'Идентификатор · необязательно'}
           <input value={externalId} onChange={e => setExternalId(e.target.value)} className="ae-input" placeholder="Например: EMP-001" />
         </label>
       </div>
 
+      <InvitationChoice value={invitation} onChange={setInvitation} />
       <EmployeeAccessFields mode={accessMode} until={accessDate} onMode={setAccessMode} onUntil={setAccessDate} />
       {employee?.access_used_at && <p>Разовый доступ использован. При необходимости можно выдать его повторно.</p>}
       {error && <div className="ae-error">{error}</div>}
 
       <div className="ae-editor-actions">
-        {!isCreate && accessMode === 'one_order' && employee?.access_used_at && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(true, true)}>Выдать доступ ещё на один заказ</button>}
+        {!isCreate && (accessMode === 'one_order' || employee?.invitation_one_order) && employee?.access_used_at && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(true, true)}>Выдать доступ ещё на один заказ</button>}
         {!isCreate && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(!employee?.is_active)}>{employee?.is_active ? 'Отключить доступ' : 'Вернуть доступ'}</button>}
         <button type="button" onClick={onClose} className="ae-cancel-btn">Отмена</button>
         <button type="button" onClick={() => handleSave()} disabled={isSaving} className="ae-save-btn">

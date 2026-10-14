@@ -43,7 +43,7 @@ export default async function ProfilePage() {
   const profile: EmployeeProfile = {
     id: user.id,
     full_name: employee?.full_name ?? '',
-    email: employee?.email ?? user.email ?? '',
+    email: user.email?.endsWith('@guest.merch.invalid') ? 'Вход по личному приглашению' : employee?.email ?? user.email ?? '',
     phone: employee?.phone ?? '',
     department: employee?.department ?? '',
     position: employee?.position ?? '',

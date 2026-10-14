@@ -15,6 +15,6 @@ export function accessUntil(expires: string | null) {
   return expires ? new Date(new Date(expires).getTime()-1).toLocaleDateString('en-CA',{timeZone:'Asia/Tashkent'}) : ''
 }
 
-export function directoryAccessOpen(employee: { is_active: boolean; access_mode: string; access_used_at: string | null; access_expires_at: string | null }) {
- return employee.is_active && (employee.access_mode !== 'one_order' || !employee.access_used_at) && (employee.access_mode !== 'until_date' || !!employee.access_expires_at && new Date(employee.access_expires_at).getTime() > Date.now())
+export function directoryAccessOpen(employee: { is_active: boolean; access_mode: string; access_used_at: string | null; access_expires_at: string | null; invitation_required?: boolean; invitation_user_id?: string | null; invitation_one_order?: boolean }) {
+ return employee.is_active && (!employee.invitation_required || !!employee.invitation_user_id) && (!employee.invitation_one_order || !employee.access_used_at) && (employee.access_mode !== 'one_order' || !employee.access_used_at) && (employee.access_mode !== 'until_date' || !!employee.access_expires_at && new Date(employee.access_expires_at).getTime() > Date.now())
 }

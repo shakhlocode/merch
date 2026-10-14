@@ -20,6 +20,8 @@ export default async function SetPasswordPage({ searchParams }: SetPasswordPageP
     redirect('/login')
   }
 
+  if (user.email?.endsWith('@guest.merch.invalid')) redirect('/catalog')
+
   const { data: employee } = await supabase
     .from('employees')
     .select('password_set_at')

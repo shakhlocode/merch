@@ -99,6 +99,12 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['employees']['Insert']>
         Relationships: never[]
       }
+      employee_invitations: {
+        Row: { id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
+        Insert: never
+        Update: { delivery_status?: string; delivery_started_at?: string | null; delivery_error?: string | null }
+        Relationships: never[]
+      }
       employee_directory: {
         Row: {
           id:            string
@@ -106,6 +112,9 @@ export type Database = {
           full_name:     string
           business_unit: string | null
           position:      string | null
+          invitation_required: boolean
+          invitation_user_id: string | null
+          invitation_one_order: boolean
           access_mode: string
           access_expires_at: string | null
           access_used_at: string | null
@@ -121,6 +130,9 @@ export type Database = {
           full_name:      string
           business_unit?: string | null
           position?:      string | null
+          invitation_required?: boolean
+          invitation_user_id?: string | null
+          invitation_one_order?: boolean
           access_mode?: string
           access_expires_at?: string | null
           access_used_at?: string | null
@@ -443,10 +455,13 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
+      check_invitation_code: { Args: { p_token_hash: string; p_code_hash: string }; Returns: { ok: boolean; id?: string } }
+      claim_invitation: { Args: { p_id: string; p_user_id: string; p_code_hash: string | null }; Returns: { ok: boolean; next: string } }
       has_system_access: { Args: Record<string, never>; Returns: boolean }
       admin_import_employees: {
         Args: { p_rows: { email: string; full_name: string; external_id: string | null }[] }
-        Returns: { added: number; skipped: number }
+        Returns: { added: number; skipped: number; employee_ids: string[] }
       }
       admin_create_product: {
         Args: { p_name: string; p_description: string | null; p_image_url: string | null; p_placement: string; p_variants: { size: string; color: string; qty: number }[] }

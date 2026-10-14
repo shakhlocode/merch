@@ -4086,3 +4086,6 @@ input:focus, select:focus, textarea:focus {
 .ae-access-fields select { width: 100%; min-width: 0; }
 .ae-directory-simple .ae-badge { white-space: normal; text-align: left; }
 @media (max-width: 640px) { .ae-access-fields { grid-template-columns: minmax(0,1fr); } }
+.invite-results { padding-left: 20px; display: grid; gap: 16px; }
+.invite-results input { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+.invite-results li > div { display: grid; gap: 8px; }

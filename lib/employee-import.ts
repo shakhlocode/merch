@@ -16,7 +16,7 @@ export function parseEmployeeCsv(text: string): string[][] {
   return rows
 }
 
-export function validateEmployeeRows(raw: unknown[][]): { rows: ImportEmployee[]; errors: string[] } {
+export function validateEmployeeRows(raw: unknown[][], allowMissingEmail = false): { rows: ImportEmployee[]; errors: string[] } {
   const header = (raw[0] ?? []).map(v => String(v ?? '').replace(/^\uFEFF/, '').trim().toLowerCase())
   const mail = header.findIndex(v => ['email','e-mail','почта','имейл'].includes(v))
   const name = header.findIndex(v => ['full_name','фио','ф.и.о.'].includes(v))
@@ -27,9 +27,10 @@ export function validateEmployeeRows(raw: unknown[][]): { rows: ImportEmployee[]
     if (row.every(v => v === null || v === undefined || String(v).trim() === '')) return
     const email = String(row[mail] ?? '').trim().toLowerCase(), full_name = String(row[name] ?? '').trim(), external_id = id < 0 ? null : String(row[id] ?? '').trim() || null
     const prefix = `Строка ${index + 2}: `
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push(prefix+'некорректный email')
+    if (!(allowMissingEmail && !email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push(prefix+'некорректный email')
     if (!full_name) errors.push(prefix+'не указано ФИО')
-    if (emails.has(email)) errors.push(prefix+'email повторяется в файле')
+    if (allowMissingEmail && !external_id) errors.push(prefix+'для личной ссылки нужен идентификатор')
+    if (email && emails.has(email)) errors.push(prefix+'email повторяется в файле')
     if (external_id && ids.has(external_id)) errors.push(prefix+'идентификатор повторяется в файле')
     emails.add(email); if (external_id) ids.add(external_id)
     rows.push({ email, full_name, external_id })

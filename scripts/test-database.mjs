@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')
@@ -114,6 +114,25 @@ try {
   const onceResults=await Promise.all([onceBuyer('20000000-0000-0000-0000-000000000007'),onceBuyer('20000000-0000-0000-0000-000000000008')])
   if(onceResults.filter(r=>r.status===0).length!==1 || !onceResults.some(r=>r.stderr.includes('single_order_pending')))throw new Error('One-order access allowed parallel orders: '+JSON.stringify(onceResults))
   console.log('PASS: simultaneous checkouts with one-order access create exactly one order')
+  run(['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'], `
+    insert into public.employee_directory(id,email,full_name,external_id) values ('30000000-0000-0000-0000-000000000061','invite-race@example.test','Invite race','RACE-61');
+    insert into auth.users(id,email) values ('00000000-0000-0000-0000-000000000061','i-40000000-0000-0000-0000-000000000061@guest.merch.invalid');
+    select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000005',false);
+    select public.admin_create_invitation('40000000-0000-0000-0000-000000000061','30000000-0000-0000-0000-000000000061',repeat('1',64),repeat('2',64),'code');`)
+  function claim() {
+    return new Promise((resolve,reject)=>{
+      const child=spawn('docker',['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'])
+      let stderr='';child.stdout.resume();child.stderr.on('data',d=>{stderr+=d});child.on('error',reject);child.on('close',status=>resolve({status,stderr}))
+      child.stdin.end(`begin; set local role service_role;
+        select public.claim_invitation('40000000-0000-0000-0000-000000000061','00000000-0000-0000-0000-000000000061',repeat('2',64));select pg_sleep(0.3);commit;`)
+    })
+  }
+  const claimResults=await Promise.all([claim(),claim()])
+  if(claimResults.filter(r=>r.status===0).length!==1 || !claimResults.some(r=>r.stderr.includes('invite_unavailable')))throw new Error('Concurrent invitation claims did not have exactly one winner')
+  const bound=run(['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'],`select (select count(*) from public.employee_audit_log where employee_directory_id='30000000-0000-0000-0000-000000000061' and action='invite_claimed')=1 and invitation_user_id='00000000-0000-0000-0000-000000000061' from public.employee_directory where id='30000000-0000-0000-0000-000000000061';`)
+  if(bound.stdout.trim()!=='t')throw new Error('Concurrent claim corrupted account binding or audit')
+  console.log('PASS: simultaneous invitation claims bind one account and record one activation')
+
 } finally {
   spawnSync('docker', ['rm', '--force', '--volumes', name], { stdio: 'ignore' })
 }
