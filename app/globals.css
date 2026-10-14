@@ -4028,3 +4028,25 @@ input:focus, select:focus, textarea:focus {
   .ap-edit-dialog .ap-edit-hero .ap-product-art { display: none; }
   .ap-edit-dialog .ap-edit-title { font-size: 20px; }
 }
+
+/* Keep stock filters separate from list actions and consolidate the summary. */
+.ap-filter-panel { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; padding: 18px; background: #fff; border: 1px solid var(--border); border-radius: 16px; }
+.ap-filter-field { display: flex; flex: 1 1 190px; min-width: 0; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 700; color: var(--inkMute); }
+.ap-filter-search { flex: 2 1 250px; }
+.ap-filter-field .ap-input { width: 100%; min-width: 0; }
+.ap-list-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ap-list-actions > span { font-size: 13px; color: var(--inkMute); }
+.ap-list-actions > div { display: flex; gap: 10px; }
+.ap-summary-strip.ap-summary-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ap-summary-compact small { font-size: 12px; font-weight: 500; text-transform: none; line-height: 1.5; }
+@media (max-width: 700px) {
+  .ap-summary-strip.ap-summary-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ap-list-actions > div { width: 100%; }
+  .ap-list-actions button { flex: 1; }
+}
+@media (max-width: 420px) {
+  .ap-filter-panel { padding: 14px; gap: 12px; }
+  .ap-filter-field { flex-basis: 100%; }
+  .ap-summary-compact .ap-summary-metric { padding: 10px; font-size: 10px; overflow-wrap: anywhere; }
+}
+.ap-metric > span, .ap-variant-header > div { overflow-wrap: anywhere; }

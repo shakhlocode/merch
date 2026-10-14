@@ -3,7 +3,7 @@
 import AdminShell from '@/components/AdminShell'
 import ProductImage from '@/components/ProductImage'
 import ProductImageUploader from '@/components/ProductImageUploader'
-import { getExportDate, getProductLetter, toCsv } from '@/lib/utils'
+import { decline, getExportDate, getProductLetter, toCsv } from '@/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -134,7 +134,7 @@ export default function AdminProductsClient({
         const totalQty     = Number(variant.total_qty)
         const reservedQty  = Number(variant.reserved_qty)
         const availableQty = Math.max(0, totalQty - reservedQty)
-        const stockStatus  = availableQty <= 0 ? 'В нуле' : availableQty <= 4 ? 'Низкий остаток' : 'Норма'
+        const stockStatus  = availableQty <= 0 ? 'Нет в наличии' : availableQty <= 4 ? 'Мало осталось' : 'Достаточно'
         return { ...baseRow, variant_size: variant.size || 'ONE SIZE', variant_color: variant.color || 'Без цвета', sku: variant.sku || '', variant_status: variant.is_active ? 'Активен' : 'Отключён', total_qty: String(totalQty), reserved_qty: String(reservedQty), available_qty: String(availableQty), stock_status: stockStatus }
       })
     })
@@ -161,95 +161,38 @@ export default function AdminProductsClient({
     >
       <section className="ap-page">
 
-        {/* Category tabs */}
-        <section className="ap-cat-tabs">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className={`ap-cat-tab${selectedCategory === 'all' ? ' ap-cat-tab-active' : ''}`}
-          >
-            Все категории
-          </button>
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => setSelectedCategory(category.id)}
-              className={`ap-cat-tab${selectedCategory === category.id ? ' ap-cat-tab-active' : ''}`}
-            >
-              {category.name}
-            </button>
-          ))}
+        <section className="ap-filter-panel" aria-label="Фильтры товаров">
+          <label className="ap-filter-field ap-filter-search">Поиск
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Название, размер или SKU" className="ap-input" type="search" />
+          </label>
+          {categories.length > 0 && <label className="ap-filter-field">Категория
+            <select aria-label="Категория" className="ap-input" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+              <option value="all">Все категории</option>
+              {categories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>}
+          <label className="ap-filter-field">Остатки
+            <select aria-label="Остатки" className="ap-input" value={stockFilter} onChange={e => setStockFilter(e.target.value as StockFilter)}>
+              <option value="all">Все остатки</option>
+              <option value="low">Мало осталось · 1–4 шт.</option>
+              <option value="zero">Нет в наличии</option>
+              <option value="normal">Достаточно · от 5 шт.</option>
+            </select>
+          </label>
+          <label className="ap-filter-field">Показывать
+            <select aria-label="Показывать" className="ap-input" value={showInactive ? 'all' : 'active'} onChange={e => setShowInactive(e.target.value === 'all')}>
+              <option value="all">Все, включая отключённые</option>
+              <option value="active">Только включённые</option>
+            </select>
+          </label>
         </section>
-
-        {/* Toolbar */}
-        <section className="ap-toolbar">
-          <div className="ap-search-box">
-            <span className="ap-search-icon">⌕</span>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск товара, материала, SKU..."
-              className="ap-search-input"
-            />
-            {search.trim().length > 0 && (
-              <button type="button" onClick={() => setSearch('')} className="ap-clear-btn">×</button>
-            )}
-          </div>
-
-          <div className="ap-toolbar-right">
-            <div className="ap-stock-tabs">
-              {(['all', 'low', 'zero', 'normal'] as StockFilter[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setStockFilter(f)}
-                  className={`ap-stock-tab${stockFilter === f ? ' ap-stock-tab-active' : ''}`}
-                >
-                  {{ all: 'Все', low: 'Низкие', zero: 'В нуле', normal: 'Норма' }[f]}
-                </button>
-              ))}
-            </div>
-
-            <label className="ap-checkbox-label">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-              />
-              Показывать отключённые
-            </label>
-
-            <button
-              type="button"
-              className="ap-export-btn"
-              onClick={handleExportStockCsv}
-              disabled={filteredProducts.length === 0}
-            >
-              Экспорт CSV
-            </button>
-
-            <button
-              type="button"
-              className="ap-new-btn"
-              onClick={() => setIsCreateOpen((v) => !v)}
-            >
-              + Новый товар
-            </button>
-          </div>
-        </section>
-
-        {/* Mode notice */}
-        <section className={isCardsMode ? 'ap-mode-notice-cards' : 'ap-mode-notice'}>
+        <div className="ap-list-actions">
+          <span aria-live="polite">Показано {filteredProducts.length} из {products.length} товаров</span>
           <div>
-            <b>{isCardsMode ? 'Режим карточек товара' : 'Режим склада'}</b>
-            <span>
-              {isCardsMode
-                ? ' Кнопка «Редактировать карточку» открывает поля во всплывающем окне.'
-                : ' Клик по строке раскрывает складские варианты и остатки.'}
-            </span>
+            <button type="button" className="ap-export-btn" onClick={handleExportStockCsv} disabled={filteredProducts.length === 0}>Экспорт CSV</button>
+            <button type="button" className="ap-new-btn" onClick={() => setIsCreateOpen(v => !v)}>+ Новый товар</button>
           </div>
-        </section>
+        </div>
 
         {/* Create product panel */}
         {isCreateOpen && (
@@ -257,14 +200,11 @@ export default function AdminProductsClient({
         )}
 
         {/* Summary strip */}
-        <section className="ap-summary-strip">
-          <SummaryMetric label="Товаров"   value={String(totals.totalProducts)} />
-          <SummaryMetric label="Активных"  value={String(totals.activeProducts)} />
-          <SummaryMetric label="Вариантов" value={String(totals.totalVariants)} />
+        <section className="ap-summary-strip ap-summary-compact" aria-label="Сводка по всему складу">
+          <SummaryMetric label="Всего товаров" value={String(totals.totalProducts)} hint={`Включено: ${totals.activeProducts} · Вариантов: ${totals.totalVariants}`} />
           <SummaryMetric label="На складе" value={`${totals.totalQty} шт.`} />
-          <SummaryMetric label="В резерве" value={`${totals.reservedQty} шт.`} />
-          <SummaryMetric label="Доступно"  value={`${totals.availableQty} шт.`} />
-          <SummaryMetric label="Низкие"    value={String(totals.lowVariants)} tone="pink" />
+          <SummaryMetric label="Зарезервировано" value={`${totals.reservedQty} шт.`} />
+          <SummaryMetric label="Доступно" value={`${totals.availableQty} шт.`} hint={`Мало осталось: ${totals.lowVariants} ${decline(totals.lowVariants, ['вариант', 'варианта', 'вариантов'])} (1–4 шт.)`} />
         </section>
 
         {/* Content */}
@@ -562,8 +502,8 @@ function ProductRow({
         </div>
 
         <Metric label="Всего на складе"    value={`${stats.totalQty} шт.`} />
-        <Metric label="Вариантов в нуле"   value={String(stats.zeroVariants)} tone="pink" />
-        <Metric label="Низкие остатки"     value={String(stats.lowVariants)} tone="pink" />
+        <Metric label="Нет в наличии"   value={String(stats.zeroVariants)} tone="pink" />
+        <Metric label="Мало осталось"     value={String(stats.lowVariants)} tone="pink" />
         <Metric label="Вариантов"          value={String(product.product_variants.length)} />
 
         <div className="ap-row-actions">
@@ -662,7 +602,7 @@ function ProductEditPanel({ product }: { product: AdminProduct }) {
             <h2 className="ap-edit-title">{product.name}</h2>
             <div className="ap-edit-metrics">
               <Metric label="Всего на складе" value={`${stats.totalQty} шт.`} />
-              <Metric label="Резерв"          value={`${stats.reservedQty} шт.`} />
+              <Metric label="Зарезервировано"          value={`${stats.reservedQty} шт.`} />
               <Metric label="Доступно"        value={`${stats.availableQty} шт.`} />
               <Metric label="Вариантов"       value={String(product.product_variants.length)} />
             </div>
@@ -845,7 +785,7 @@ function VariantsEditor({ product }: { product: AdminProduct }) {
             <div>Цвет</div>
             <div>SKU</div>
             <div>Всего</div>
-            <div>Резерв</div>
+            <div>Зарезервировано</div>
             <div>Доступно</div>
             <div>Статус</div>
             <div>Действия</div>
@@ -971,11 +911,12 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
 /*  SummaryMetric · Metric                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function SummaryMetric({ label, value, tone }: { label: string; value: string; tone?: 'pink' }) {
+function SummaryMetric({ label, value, tone, hint }: { label: string; value: string; tone?: 'pink'; hint?: string }) {
   return (
     <div className="ap-summary-metric">
       <span>{label}</span>
       <b className={tone === 'pink' ? 'ap-pink' : ''}>{value}</b>
+      {hint && <small>{hint}</small>}
     </div>
   )
 }
