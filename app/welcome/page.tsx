@@ -1,3 +1,4 @@
+import { requireSystemAccess } from '@/lib/system-access'
 import ProductImage from '@/components/ProductImage'
 import AppNav from '@/components/AppNav'
 import Link from 'next/link'
@@ -9,6 +10,8 @@ export default async function WelcomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+  await requireSystemAccess(supabase)
+
   if (await needsPasswordSetup(supabase, user.id)) redirect('/set-password')
 
   const { data: employee } = await supabase

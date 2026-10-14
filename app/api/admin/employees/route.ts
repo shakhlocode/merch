@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { accessFields } from '@/lib/employee-access'
 import { createClient } from '@/lib/supabase/server'
 
 type EmployeeAction = 'create_employee' | 'update_employee' | 'import_employees'
@@ -10,6 +11,9 @@ type Payload = {
   full_name?: string
   business_unit?: string | null
   position?: string | null
+  access_mode?: string
+  access_until?: string
+  renew_access?: boolean
   external_id?: string | null
   rows?: { email: string; full_name: string; external_id: string | null }[]
   hired_at?: string
@@ -54,7 +58,9 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'import_employees') {
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 2000) return NextResponse.json({ error: 'Загрузите от 1 до 2000 строк' }, { status: 400 })
-      const { data, error } = await supabase.rpc('admin_import_employees', { p_rows: body.rows })
+      let policy
+      try { policy = accessFields(body.access_mode, body.access_until) } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
+      const { data, error } = await supabase.rpc('admin_import_employees', { p_rows: body.rows.map(row => ({ ...row, ...policy })) })
       return error ? NextResponse.json({ error: mapError(error.message) }, { status: 400 }) : NextResponse.json({ ok: true, ...data })
     }
 
@@ -69,7 +75,12 @@ export async function POST(request: NextRequest) {
     if (!fullName) return NextResponse.json({ error: 'ФИО обязательно' }, { status: 400 })
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'Некорректный email' }, { status: 400 })
 
+    let policy = {}
+    try { if (body.access_mode !== undefined || body.action === 'create_employee') policy = accessFields(body.access_mode, body.access_until, body.action === 'update_employee') }
+    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
     const fields = {
+      ...policy,
+      ...(body.renew_access === true ? { access_used_at: null } : {}),
       email,
       full_name:     fullName,
       external_id: cleanText(body.external_id),

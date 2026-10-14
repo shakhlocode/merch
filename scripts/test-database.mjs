@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')
@@ -97,6 +97,23 @@ try {
       from public.product_variants where sku='LAST-ITEM';`)
   if (issued.stdout.trim() !== 't') throw new Error('Concurrent issue corrupted stock, audit or handout status')
   console.log('PASS: two simultaneous admin scans issue once with a single stock movement and audit event')
+
+  run(['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'], `
+    update public.employee_directory set access_mode='one_order' where email='race@example.test';
+    insert into public.products(id,name) values ('10000000-0000-0000-0000-000000000007','One-order race A'),('10000000-0000-0000-0000-000000000008','One-order race B');
+    insert into public.product_variants(id,product_id,sku) values ('20000000-0000-0000-0000-000000000007','10000000-0000-0000-0000-000000000007','ACCESS-RACE-A'),('20000000-0000-0000-0000-000000000008','10000000-0000-0000-0000-000000000008','ACCESS-RACE-B');
+    insert into public.stock_movements(variant_id,movement_type,qty) select id,'income',5 from public.product_variants where sku like 'ACCESS-RACE-%';`)
+  function onceBuyer(variant) {
+    return new Promise((resolve,reject)=>{
+      const child=spawn('docker',['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'])
+      let stderr='';child.stdout.resume();child.stderr.on('data',d=>{stderr+=d});child.on('error',reject);child.on('close',status=>resolve({status,stderr}))
+      child.stdin.end(`begin; set local role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000005',true);
+        select public.create_merch_order('[{"variant_id":"${variant}","qty":1}]','office',null,null,null,false,null);select pg_sleep(0.3);commit;`)
+    })
+  }
+  const onceResults=await Promise.all([onceBuyer('20000000-0000-0000-0000-000000000007'),onceBuyer('20000000-0000-0000-0000-000000000008')])
+  if(onceResults.filter(r=>r.status===0).length!==1 || !onceResults.some(r=>r.stderr.includes('single_order_pending')))throw new Error('One-order access allowed parallel orders: '+JSON.stringify(onceResults))
+  console.log('PASS: simultaneous checkouts with one-order access create exactly one order')
 } finally {
   spawnSync('docker', ['rm', '--force', '--volumes', name], { stdio: 'ignore' })
 }

@@ -1,21 +1,28 @@
 'use client'
+import EmployeeAccessFields from '@/components/EmployeeAccessFields'
+import type { AccessMode } from '@/lib/employee-access'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { parseEmployeeCsv, validateEmployeeRows, type ImportEmployee } from '@/lib/employee-import'
 
 export default function EmployeeImport() {
   const router = useRouter()
+  const [mode, setMode] = useState<AccessMode>('unlimited')
+  const [until, setUntil] = useState('')
   const [rows, setRows] = useState<ImportEmployee[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [submitError, setSubmitError] = useState('')
   return <section className="ae-editor ae-editor-create">
     <h2 className="ae-editor-title">Загрузка сотрудников из таблицы</h2>
     <p>Первый лист Excel (.xlsx) или CSV, до 5 МБ и 2000 сотрудников. Колонки: Email, ФИО, Идентификатор (необязательно). Идентификаторы с ведущими нулями храните как текст.</p>
     <a href="/templates/employees.csv" download className="login-text-button">Скачать шаблон CSV для Excel</a>
     <p>Существующие email будут пропущены. Добавленные сотрудники сразу получат право заказывать мерч после входа.</p>
+    <p>Тип доступа ниже будет назначен всем новым сотрудникам из файла.</p>
+    <EmployeeAccessFields mode={mode} until={until} onMode={setMode} onUntil={setUntil} />
     <label className="ae-field">Выберите таблицу<input type="file" accept=".xlsx,.csv" disabled={busy} onChange={async event => {
-      const file = event.target.files?.[0]; setRows([]); setErrors([]); setMessage('')
+      const file = event.target.files?.[0]; setRows([]); setErrors([]); setMessage(''); setSubmitError('')
       if (!file) return
       setBusy(true)
       try {
@@ -32,14 +39,15 @@ export default function EmployeeImport() {
     {errors.length > 0 && <div role="alert" className="ae-error">{errors.slice(0,20).map((error,i) => <p key={i}>{error}</p>)}{errors.length>20 && <p>И ещё {errors.length-20} ошибок.</p>}</div>}
     {rows.length>0 && !errors.length && <div><p>Проверено строк: {rows.length}. Первые 5:</p><ul>{rows.slice(0,5).map(row => <li key={row.email}>{row.full_name} · {row.email} · {row.external_id || 'Без идентификатора'}</li>)}</ul></div>}
     <button type="button" className="ae-save-btn" disabled={busy || !rows.length || !!errors.length} onClick={async () => {
-      setBusy(true); setMessage('')
+      setBusy(true); setMessage(''); setSubmitError('')
       try {
-        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows }) })
+        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows, access_mode: mode, access_until: until }) })
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Не удалось загрузить сотрудников')
         setMessage(`Добавлено: ${result.added}. Уже были в реестре: ${result.skipped}.`); setRows([]); router.refresh()
-      } catch (e) { setErrors([e instanceof Error ? e.message : 'Ошибка загрузки']) } finally { setBusy(false) }
+      } catch (e) { setSubmitError(e instanceof Error ? e.message : 'Ошибка загрузки') } finally { setBusy(false) }
     }}>{busy ? 'Обрабатываем…' : 'Добавить сотрудников'}</button>
+    {submitError && <p role="alert" className="ae-error">{submitError}</p>}
     {message && <p role="status">{message}</p>}
   </section>
 }

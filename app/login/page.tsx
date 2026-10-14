@@ -45,6 +45,9 @@ function LoginContent() {
         return
       }
 
+      const { data: allowed, error: accessError } = await supabase.rpc('has_system_access', {})
+      if (accessError || !allowed) { router.replace('/access-closed'); return }
+
       const { data: employee } = await supabase
         .from('employees')
         .select('password_set_at')

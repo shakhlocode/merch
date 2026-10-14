@@ -1,5 +1,7 @@
 'use client'
 
+import EmployeeAccessFields from '@/components/EmployeeAccessFields'
+import { accessUntil, directoryAccessOpen, type AccessMode } from '@/lib/employee-access'
 import EmployeeImport from '@/components/EmployeeImport'
 import AdminShell from '@/components/AdminShell'
 import { useEffect, useMemo, useState } from 'react'
@@ -12,6 +14,9 @@ export type DirectoryEmployee = {
   full_name: string
   business_unit: string | null
   position: string | null
+  access_mode: AccessMode
+  access_expires_at: string | null
+  access_used_at: string | null
   external_id: string | null
   hired_at: string | null
   is_active: boolean
@@ -47,7 +52,7 @@ export default function AdminEmployeesClient({
 
   const totals = useMemo(() => {
     const total    = employees.length
-    const active   = employees.filter((e) => e.is_active).length
+    const active   = employees.filter(directoryAccessOpen).length
     const inactive = total - active
     return { total, active, inactive }
   }, [employees])
@@ -58,8 +63,8 @@ export default function AdminEmployeesClient({
     return employees.filter((e) => {
       const statusMatch =
         statusFilter === 'all' ||
-        (statusFilter === 'active'   && e.is_active) ||
-        (statusFilter === 'inactive' && !e.is_active)
+        (statusFilter === 'active'   && directoryAccessOpen(e)) ||
+        (statusFilter === 'inactive' && !directoryAccessOpen(e))
 
 
       const searchMatch =
@@ -82,7 +87,10 @@ export default function AdminEmployeesClient({
       business_unit: e.business_unit || '',
       position:      e.position || '',
       hired_at:      formatDate(e.hired_at),
-      status:        e.is_active ? 'Активен' : 'Доступ отключён',
+      access_mode: e.access_mode,
+      access_until: accessUntil(e.access_expires_at),
+      access_used_at: e.access_used_at || '',
+      status: directoryAccessOpen(e) ? 'Доступ открыт' : 'Доступ закрыт',
     }))
 
     const csv  = toCsv(rows)
@@ -218,8 +226,8 @@ export default function AdminEmployeesClient({
                       <div className="ae-cell-mute">{employee.external_id || '—'}</div>
 
                       <div>
-                        <span className={`ae-badge${employee.is_active ? '' : ' ae-badge-off'}`}>
-                          {employee.is_active ? 'Активен' : 'Доступ отключён'}
+                        <span className={`ae-badge${directoryAccessOpen(employee) ? '' : ' ae-badge-off'}`}>
+                          {!employee.is_active ? 'Отключён' : employee.access_mode === 'one_order' ? (employee.access_used_at ? 'Заказ получен · доступ закрыт' : 'До получения заказа') : employee.access_mode === 'until_date' ? `${directoryAccessOpen(employee) ? 'До' : 'Истёк'} ${formatDate(accessUntil(employee.access_expires_at))}` : 'Бессрочный'}
                         </span>
                       </div>
 
@@ -265,10 +273,12 @@ function EmployeeEditor({
   const [email,    setEmail]    = useState(employee?.email ?? '')
   const [externalId, setExternalId] = useState(employee?.external_id ?? '')
 
+  const [accessMode, setAccessMode] = useState<AccessMode>(employee?.access_mode ?? 'unlimited')
+  const [accessDate, setAccessDate] = useState(accessUntil(employee?.access_expires_at ?? null))
   const [isSaving, setIsSaving] = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  async function handleSave(nextActive = employee?.is_active ?? true) {
+  async function handleSave(nextActive = employee?.is_active ?? true, renew = false) {
     setIsSaving(true)
     setError(null)
 
@@ -282,6 +292,9 @@ function EmployeeEditor({
           full_name: fullName,
           email,
           external_id: externalId,
+          access_mode: accessMode,
+          access_until: accessDate,
+          renew_access: renew,
           is_active: nextActive,
         }),
       })
@@ -331,9 +344,12 @@ function EmployeeEditor({
         </label>
       </div>
 
+      <EmployeeAccessFields mode={accessMode} until={accessDate} onMode={setAccessMode} onUntil={setAccessDate} />
+      {employee?.access_used_at && <p>Разовый доступ использован. При необходимости можно выдать его повторно.</p>}
       {error && <div className="ae-error">{error}</div>}
 
       <div className="ae-editor-actions">
+        {!isCreate && accessMode === 'one_order' && employee?.access_used_at && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(true, true)}>Выдать доступ ещё на один заказ</button>}
         {!isCreate && <button type="button" className="ae-cancel-btn" disabled={isSaving} onClick={() => handleSave(!employee?.is_active)}>{employee?.is_active ? 'Отключить доступ' : 'Вернуть доступ'}</button>}
         <button type="button" onClick={onClose} className="ae-cancel-btn">Отмена</button>
         <button type="button" onClick={() => handleSave()} disabled={isSaving} className="ae-save-btn">

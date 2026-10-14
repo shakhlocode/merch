@@ -1,3 +1,4 @@
+import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
 import OrderBarcode from '@/components/OrderBarcode'
 import Link from 'next/link'
@@ -95,6 +96,8 @@ export default async function OrdersPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+  await requireSystemAccess(supabase)
+
   if (await needsPasswordSetup(supabase, user.id)) redirect('/set-password')
 
   const { data: employee } = await supabase

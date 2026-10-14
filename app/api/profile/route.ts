@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { data: allowed, error: accessError } = await supabase.rpc('has_system_access', {})
+    if (accessError || !allowed) return NextResponse.json({ error: 'Доступ к магазину закрыт' }, { status: 403 })
+
     const body = (await request.json()) as ProfilePayload
 
     const fullName = body.full_name?.trim()

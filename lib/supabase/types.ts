@@ -106,6 +106,9 @@ export type Database = {
           full_name:     string
           business_unit: string | null
           position:      string | null
+          access_mode: string
+          access_expires_at: string | null
+          access_used_at: string | null
           external_id:   string | null
           hired_at:      string | null
           is_active:     boolean
@@ -118,6 +121,9 @@ export type Database = {
           full_name:      string
           business_unit?: string | null
           position?:      string | null
+          access_mode?: string
+          access_expires_at?: string | null
+          access_used_at?: string | null
           external_id?:   string | null
           hired_at?:      string | null
           is_active?:     boolean
@@ -437,6 +443,7 @@ export type Database = {
       }
     }
     Functions: {
+      has_system_access: { Args: Record<string, never>; Returns: boolean }
       admin_import_employees: {
         Args: { p_rows: { email: string; full_name: string; external_id: string | null }[] }
         Returns: { added: number; skipped: number }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import SystemAccessMonitor from '@/components/SystemAccessMonitor'
 
 export const metadata: Metadata = {
   title: 'Uzum Merch',
@@ -18,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>{children}<SystemAccessMonitor /></body>
     </html>
   )
 }

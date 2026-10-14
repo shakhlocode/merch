@@ -738,6 +738,8 @@ function getInitials(fullName: string | null, email: string | null): string {
 }
 
 function getCheckoutErrorMessage(error: string): string {
+  if (error.includes('single_order_pending')) return 'У вас уже есть заказ. Разовый доступ позволяет получить только один заказ.'
+  if (error.includes('access_expired') || error.includes('access_order_received')) return 'Доступ закрыт: срок закончился или разовый заказ уже получен.'
   if (error.includes('product_already_ordered'))
     return 'Один из выбранных товаров уже был заказан ранее. Повторный заказ недоступен.'
   if (error.includes('one_unit_per_product_only'))

@@ -1,3 +1,4 @@
+import { requireSystemAccess } from '@/lib/system-access'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
@@ -37,6 +38,8 @@ export default async function CatalogPage() {
   if (!user) {
     redirect('/login')
   }
+
+  await requireSystemAccess(supabase)
 
   if (await needsPasswordSetup(supabase, user.id)) {
     redirect('/set-password')

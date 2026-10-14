@@ -1,5 +1,4 @@
 import AdminShell from '@/components/AdminShell'
-import DeadlineEditor from '@/components/DeadlineEditor'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -95,12 +94,6 @@ export default async function AdminDashboardPage() {
       .order('created_at', { ascending: false }),
   ])
 
-  const { data: settings } = await supabase
-    .from('merch_settings')
-    .select('handout_deadline, handout_place, handout_note')
-    .eq('id', 1)
-    .maybeSingle()
-
   const orders   = ((ordersData   ?? []) as unknown) as AdminDashOrder[]
   const products = ((productsData ?? []) as unknown) as AdminDashProduct[]
 
@@ -150,19 +143,6 @@ export default async function AdminDashboardPage() {
         <KpiCard tone="default"  label="Новые за неделю"         value={String(newThisWeek.length)}      hint="заявки за последние 7 дней" />
         <KpiCard tone="danger"   label="Позиций в дефиците"      value={String(lowStockVariants.length)} hint="≤ 4 шт. доступно" />
         <KpiCard tone="default"  label="Сотрудников с заказами"  value={String(uniqueEmployees)}         hint="уникальных получателей" />
-      </section>
-
-      {/* ── Дедлайн раздачи ── */}
-      <section className="dash-card">
-        <div className="dash-card-head">
-          <h2 className="dash-card-title">Дедлайн раздачи</h2>
-          <span className="dash-card-link">виден сотрудникам</span>
-        </div>
-        <DeadlineEditor
-          handoutDeadline={settings?.handout_deadline ?? null}
-          handoutPlace={settings?.handout_place ?? null}
-          handoutNote={settings?.handout_note ?? null}
-        />
       </section>
 
       {/* ── Dashboard 2×2 ── */}

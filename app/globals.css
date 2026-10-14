@@ -4082,3 +4082,7 @@ input:focus, select:focus, textarea:focus {
   .ae-editor-actions { flex-wrap: wrap; }
   .ae-field, .ae-input { min-width: 0; max-width: 100%; }
 }
+.ae-access-fields { display: grid; gap: 14px; grid-template-columns: repeat(2,minmax(0,1fr)); margin: 18px 0; }
+.ae-access-fields select { width: 100%; min-width: 0; }
+.ae-directory-simple .ae-badge { white-space: normal; text-align: left; }
+@media (max-width: 640px) { .ae-access-fields { grid-template-columns: minmax(0,1fr); } }
