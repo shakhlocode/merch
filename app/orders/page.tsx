@@ -1,4 +1,5 @@
 import {defaultStoreContent,orderMessage} from '@/lib/store-content'
+import { displayColor, displaySize } from '@/lib/variant-labels'
 import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
@@ -395,7 +396,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function formatVariant(item: OrderItem) {
-  return [item.color || 'Без цвета', item.size || 'ONE SIZE']
+  return [displayColor(item.color), displaySize(item.size)]
     .filter(Boolean)
     .join(' · ')
 }

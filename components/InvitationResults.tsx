@@ -64,7 +64,14 @@ export default function InvitationResults({
                 <button
                   type="button"
                   className="ae-export-btn"
-                  onClick={() => navigator.clipboard.writeText(item.url!)}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(item.url!)
+                      setMessage('Ссылка скопирована. Отправьте её этому сотруднику.')
+                    } catch {
+                      setMessage('Не удалось скопировать автоматически. Выделите ссылку и скопируйте вручную.')
+                    }
+                  }}
                 >
                   Скопировать ссылку
                 </button>

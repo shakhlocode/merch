@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import InvitationQueue from '@/components/InvitationQueue'
 import InvitationChoice, { type InvitationChoiceValue } from '@/components/InvitationChoice'
 import InvitationResults from '@/components/InvitationResults'
@@ -132,6 +133,10 @@ export default function AdminEmployeesClient({
       stockAlertCount={stockAlertCount}
     >
       <section className="ae-page ae-directory-simple">
+        <section className="dash-card welcome-employees-link">
+          <div><h2>Пригласить новичка в Welcome pack</h2><p>Создайте персональную ссылку для выбора мерча и получения в офисе.</p></div>
+          <Link href="/admin/welcome" className="ae-new-btn">Создать ссылку Welcome pack →</Link>
+        </section>
 
         {/* Summary */}
         <section className="ae-summary-strip">

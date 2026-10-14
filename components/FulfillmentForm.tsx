@@ -10,63 +10,96 @@ export default function FulfillmentForm({
   offices,
   identity,
   disabled,
+  officeOnly = false,
 }: {
   value: PickupDetails
   onChange: (value: PickupDetails) => void
   offices: PickupOffice[]
   identity: { full_name: string | null; legal_entity: string | null }
   disabled: boolean
+  officeOnly?: boolean
 }) {
   const update = (key: keyof PickupDetails, v: string) =>
     onChange({ ...value, [key]: v })
   return (
     <fieldset className="pickup-form" disabled={disabled}>
-      <label className="form-label">
-        Формат работы и получения
-        <select
-          className="form-input"
-          value={
-            value.mode === 'office'
-              ? value.officeId
-                ? 'office:' + value.officeId
-                : ''
-              : value.mode
-          }
-          onChange={(e) => {
-            const v = e.target.value
-            if (v.startsWith('office:'))
-              onChange({ ...value, mode: 'office', officeId: v.slice(7) })
-            else
-              onChange({
-                ...value,
-                mode: v as PickupDetails['mode'],
-                officeId: '',
-              })
-          }}
-        >
-          <option value="" disabled>
-            Выберите формат работы
-          </option>
-          <optgroup label="Работаю в офисе">
-            {offices.map((o) => (
-              <option key={o.id} value={'office:' + o.id}>
-                В офисе — {o.name}
+      {officeOnly ? (
+        <>
+          <label className="form-label">
+            Офис получения
+            <select
+              aria-label="Офис получения"
+              required
+              className="form-input"
+              value={value.officeId}
+              onChange={(e) =>
+                onChange({ ...value, mode: 'office', officeId: e.target.value })
+              }
+            >
+              <option value="" disabled>
+                Выберите офис
               </option>
-            ))}
-          </optgroup>
-          <option value="remote_shipping">Удалённо — отправка</option>
-          <option value="remote_visit">Удалённо — заберу в Ташкенте</option>
-        </select>
-      </label>
-      <p className="pickup-address">
-        {value.mode === 'remote_shipping'
-          ? 'Работаю удалённо. Отправьте мерч в мою страну.'
-          : value.mode === 'remote_visit'
-            ? 'Работаю удалённо, но смогу забрать мерч во время визита в Ташкент.'
-            : value.officeId
-              ? `Работаю в офисе: ${offices.find((o) => o.id === value.officeId)?.name || ''}`
-              : 'Выберите свой офис или вариант для удалённого сотрудника.'}
-      </p>
+              {offices.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="pickup-address">
+            Welcome pack можно получить только лично в офисе.
+          </p>
+        </>
+      ) : (
+        <>
+          <label className="form-label">
+            Формат работы и получения
+            <select
+              className="form-input"
+              value={
+                value.mode === 'office'
+                  ? value.officeId
+                    ? 'office:' + value.officeId
+                    : ''
+                  : value.mode
+              }
+              onChange={(e) => {
+                const v = e.target.value
+                if (v.startsWith('office:'))
+                  onChange({ ...value, mode: 'office', officeId: v.slice(7) })
+                else
+                  onChange({
+                    ...value,
+                    mode: v as PickupDetails['mode'],
+                    officeId: '',
+                  })
+              }}
+            >
+              <option value="" disabled>
+                Выберите формат работы
+              </option>
+              <optgroup label="Работаю в офисе">
+                {offices.map((o) => (
+                  <option key={o.id} value={'office:' + o.id}>
+                    В офисе — {o.name}
+                  </option>
+                ))}
+              </optgroup>
+              <option value="remote_shipping">Удалённо — отправка</option>
+              <option value="remote_visit">Удалённо — заберу в Ташкенте</option>
+            </select>
+          </label>
+          <p className="pickup-address">
+            {value.mode === 'remote_shipping'
+              ? 'Работаю удалённо. Отправьте мерч в мою страну.'
+              : value.mode === 'remote_visit'
+                ? 'Работаю удалённо, но смогу забрать мерч во время визита в Ташкент.'
+                : value.officeId
+                  ? `Работаю в офисе: ${offices.find((o) => o.id === value.officeId)?.name || ''}`
+                  : 'Выберите свой офис или вариант для удалённого сотрудника.'}
+          </p>
+        </>
+      )}
       {value.mode === 'office' && (
         <div className="pickup-identity">
           <p>

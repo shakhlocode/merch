@@ -37,7 +37,7 @@ export default function InterfaceSettings({
     }
   }
   const keys = (Object.keys(contentLabels) as (keyof StoreContent)[]).filter(
-    (k) => (tab === 'rules' ? k.endsWith('_rules') : k.endsWith('_message'))
+    (k) => (tab === 'rules' ? k.endsWith('_rules') : k.endsWith('_message') && !['welcome_shipping_message','welcome_visit_message'].includes(k))
   )
   return (
     <section className="pickup-settings">

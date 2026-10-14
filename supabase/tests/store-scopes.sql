@@ -43,6 +43,14 @@ reset role;set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000082',true);
 select pg_temp.assert(public.my_store_scope()='welcome' and not public.has_shop_access('catalog') and public.has_shop_access('welcome') and (select count(*)=2 from public.products) and not exists(select 1 from public.product_variants where sku='SCOPE-C'),'Welcome recipient sees only Welcome and both-placement inventory');
 do $$ begin
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1}]','remote_shipping',null,'+998901234567','Kazakhstan','Almaty',null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'welcome_office_only' then raise;end if;end;
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1}]','remote_visit','60000000-0000-0000-0000-000000000080','+998901234567',null,null,null,current_date,current_date+10);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'welcome_office_only' then raise;end if;end;
+ begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1}]','office',null,null,null,true,'Kazakhstan');raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'welcome_office_only' then raise;end if;end;
+ begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1}]','courier',null,null,null,false,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'welcome_office_only' then raise;end if;end;
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1}]','office',null,'+998901234567',null,null,null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'Выберите действующий офис получения' then raise;end if;end;
+end $$;
+select pg_temp.assert(not exists(select 1 from public.orders) and (select reserved_qty=0 from public.product_variants where sku='SCOPE-W'),'Welcome requires office pickup; remote, visit, legacy shipping and missing office do not create an order or reserve stock');
+do $$ begin
  begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000081","qty":1}]','office','60000000-0000-0000-0000-000000000080','+998901234567',null,null,null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'product_scope_not_allowed' then raise;end if;end;
 end $$;
 select pg_temp.assert(public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000082","qty":1},{"variant_id":"20000000-0000-0000-0000-000000000083","qty":1}]','office','60000000-0000-0000-0000-000000000080','+998901234567',null,null,null,null,null)->>'pickup_message'='Welcome office message','Welcome checkout uses its configured office message');

@@ -4089,6 +4089,14 @@ input:focus, select:focus, textarea:focus {
 .invite-results { padding-left: 20px; display: grid; gap: 16px; }
 .invite-results input { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
 .invite-results li > div { display: grid; gap: 8px; }
+.welcome-admin-page { display: grid; gap: 20px; }
+.welcome-admin-page h2, .welcome-employees-link h2 { margin: 0 0 10px; }
+.welcome-invite-intro p, .welcome-invite-fields p, .welcome-employees-link p { line-height: 1.6; overflow-wrap: anywhere; }
+.welcome-invite-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 18px; }
+.welcome-recipient-fields { display: grid; gap: 14px; max-width: 640px; min-width: 0; }
+.welcome-recipient-fields select { width: 100%; text-overflow: ellipsis; }
+.welcome-employees-link { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.welcome-employees-link .ae-new-btn { text-decoration: none; }
 
 /* Checkout and administrator pickup settings */
 .pickup-form {border:0;padding:0;margin:0;min-width:0;display:grid;gap:16px;width:100%}

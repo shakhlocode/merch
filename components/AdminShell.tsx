@@ -15,6 +15,7 @@ type AdminShellProps = {
 }
 
 const navItems = [
+  { key:'welcome',href:'/admin/welcome',label:'Welcome pack',description:'Ссылки для новичков',icon:'↗' },
   { key:'interface',href:'/admin/interface',label:'Тексты и настройки',description:'Правила, сообщения, офисы',icon:'⚙' },
   { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование Code 128', icon: '▥' },
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
@@ -28,7 +29,6 @@ export default function AdminShell({
   children,
   adminEmail,
   title    = 'Сводка',
-  subtitle = 'Админ-панель · merch.uzum.tech',
   orderCount,
   stockAlertCount,
 }: AdminShellProps) {
@@ -87,6 +87,7 @@ export default function AdminShell({
         <nav className="admin-nav">
           {navItems.map((item, index) => {
             const active =
+              (item.key === 'welcome' && pathname === '/admin/welcome') ||
               (item.key === 'interface' && pathname === '/admin/interface') ||
               (item.key === 'issue' && pathname === '/admin/issue') ||
               (item.key === 'dashboard' && pathname === '/admin') ||
@@ -141,7 +142,6 @@ export default function AdminShell({
 
         <header className="admin-topbar">
           <div>
-            <div className="admin-topbar-sub">{subtitle}</div>
             <h1 className="admin-topbar-title">{title}</h1>
           </div>
 

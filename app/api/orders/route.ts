@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
 
     const {data:scope}=await supabase.rpc('my_store_scope',{})
     if(body.shop_scope!==undefined&&body.shop_scope!==scope)return NextResponse.json({error:'Доступ к разделу изменился. Обновите страницу.'},{status:403})
+    if(scope==='welcome'&&body.fulfillment_mode!=='office')return NextResponse.json({error:'welcome_office_only'},{status:400})
 
     const variantIds = items.map((item) => item.variant_id)
     const { data: variants, error: variantsError } = await supabase

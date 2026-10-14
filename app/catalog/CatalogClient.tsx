@@ -7,6 +7,7 @@ import type { PickupDetails,PickupOffice } from '@/lib/fulfillment'
 import AppNav from '@/components/AppNav'
 import ProductImage from '@/components/ProductImage'
 import { getProductLetter } from '@/lib/utils'
+import { displayColor, displaySize } from '@/lib/variant-labels'
 import { useMemo, useState } from 'react'
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -357,6 +358,7 @@ export default function CatalogClient({
           </main>
 
               <CartAside
+                officeOnly={scope==='welcome'}
                 key={checkoutSuccess ?? 'cart'}
                 cart={cart}
                 totalQty={totalQty}
@@ -390,15 +392,15 @@ function ProductCard({
   isBlocked: boolean
   onAddToCart: (product: CatalogProduct, variant: CatalogVariant) => void
 }) {
-  const colors = Array.from(new Set(product.variants.map(v => v.color || 'Без цвета')))
+  const colors = Array.from(new Set(product.variants.map(v => displayColor(v.color))))
   const allSizes = Array.from(new Set(product.variants.map(v => v.size || 'ONE SIZE')))
   const [selectedColor, setSelectedColor] = useState(colors.length === 1 ? colors[0] : '')
   const [selectedSize, setSelectedSize] = useState(allSizes.length === 1 ? allSizes[0] : '')
   const sizes = Array.from(new Set(product.variants
-    .filter(v => !selectedColor || (v.color || 'Без цвета') === selectedColor)
+    .filter(v => !selectedColor || displayColor(v.color) === selectedColor)
     .map(v => v.size || 'ONE SIZE')))
   const selectedVariant = product.variants.find(v =>
-    (v.color || 'Без цвета') === selectedColor && (v.size || 'ONE SIZE') === selectedSize)
+    displayColor(v.color) === selectedColor && (v.size || 'ONE SIZE') === selectedSize)
 
   const imageUrl = product.image_url || product.images?.[0] || ''
 
@@ -443,7 +445,7 @@ function ProductCard({
               onChange={e => {
                 const color = e.target.value
                 setSelectedColor(color)
-                const availableSizes = Array.from(new Set(product.variants.filter(v => (v.color || 'Без цвета') === color).map(v => v.size || 'ONE SIZE')))
+                const availableSizes = Array.from(new Set(product.variants.filter(v => displayColor(v.color) === color).map(v => v.size || 'ONE SIZE')))
                 if (!availableSizes.includes(selectedSize)) setSelectedSize(availableSizes.length === 1 ? availableSizes[0] : '')
               }}>
               <option value="" disabled>Выберите цвет</option>
@@ -454,7 +456,7 @@ function ProductCard({
             <select aria-label={`Размер товара ${product.name}`} className="variant-select" value={selectedSize} disabled={isInCart || isBlocked}
               onChange={e => setSelectedSize(e.target.value)}>
               <option value="" disabled>Выберите размер</option>
-              {sizes.map(size => <option key={size} value={size}>{size}</option>)}
+              {sizes.map(size => <option key={size} value={size}>{displaySize(size)}</option>)}
             </select>
           </label>
         </div>
@@ -476,7 +478,8 @@ function ProductCard({
 /*  CartAside                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+function CartAside({officeOnly,cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+ officeOnly:boolean;
  cart:CartItem[];totalQty:number;pickup:PickupDetails;offices:PickupOffice[];identity:{full_name:string|null;legal_entity:string|null};successCode:string|null;
  isSubmitting:boolean;checkoutError:string|null;checkoutSuccess:string|null;merchAccess:MerchAccess;onRemove:(id:string)=>void;onPickupChange:(value:PickupDetails)=>void;onCheckout:()=>void
 }) {
@@ -504,7 +507,7 @@ function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitti
           <div className="cart-form">
             <a href="#catalog-grid" className="login-text-button">← Продолжить выбор товаров</a>
 
-            <FulfillmentForm value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
+            <FulfillmentForm officeOnly={officeOnly} value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
 
             <section className="cart-review" aria-label="Выбранные товары">
               <h3>Вы выбрали</h3>
@@ -513,8 +516,8 @@ function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitti
                   <li key={item.variant.id} className="cart-line">
                     <div className="cart-line-info">
                       <b>{item.product.name}</b>
-                      <span className="cart-line-variant">Размер: {item.variant.size || 'ONE SIZE'}</span>
-                      <span className="cart-line-variant">Цвет: {item.variant.color || 'Без цвета'} · 1 шт.</span>
+                      <span className="cart-line-variant">Размер: {displaySize(item.variant.size)}</span>
+                      <span className="cart-line-variant">Цвет: {displayColor(item.variant.color)} · 1 шт.</span>
                     </div>
                     <button type="button" className="cart-line-remove" disabled={isSubmitting}
                       onClick={() => onRemove(item.variant.id)} aria-label={`Удалить ${item.product.name}`}>×</button>
@@ -637,6 +640,7 @@ function getInitials(fullName: string | null, email: string | null): string {
 }
 
 function getCheckoutErrorMessage(error: string): string {
+  if (error.includes('welcome_office_only')) return 'Welcome pack можно получить только лично в офисе. Выберите офис получения.'
   if (error.includes('single_order_pending')) return 'У вас уже есть заказ. Разовый доступ позволяет получить только один заказ.'
   if (error.includes('access_expired') || error.includes('access_order_received')) return 'Доступ закрыт: срок закончился или разовый заказ уже получен.'
   if (error.includes('product_already_ordered'))
