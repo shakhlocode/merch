@@ -154,6 +154,12 @@ export default function CatalogClient({
       return
     }
     setCart(cur => [...cur, { product, variant, qty: 1 }])
+    if (cart.length === 0 && window.matchMedia('(max-width: 640px)').matches) {
+      requestAnimationFrame(() => document.getElementById('cart-aside')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      }))
+    }
   }
 
   function removeFromCart(variantId: string) {
@@ -340,7 +346,7 @@ export default function CatalogClient({
                       key={product.id}
                       product={product}
                       isInCart={isProductInCart(product.id)}
-                      isBlocked={!merchAccess.isAllowed || cart.length >= MAX_UNIQUE_PRODUCTS}
+                      isBlocked={isSubmitting || !merchAccess.isAllowed || cart.length >= MAX_UNIQUE_PRODUCTS}
                       onAddToCart={addToCart}
                     />
                   ))
@@ -384,16 +390,17 @@ function ProductCard({
   isBlocked: boolean
   onAddToCart: (product: CatalogProduct, variant: CatalogVariant) => void
 }) {
-  const [selectedVariantId, setSelectedVariantId] = useState(
-    product.variants[0]?.id ?? ''
-  )
-
-  const selectedVariant =
-    product.variants.find(v => v.id === selectedVariantId) ??
-    product.variants[0]
+  const colors = Array.from(new Set(product.variants.map(v => v.color || 'Без цвета')))
+  const allSizes = Array.from(new Set(product.variants.map(v => v.size || 'ONE SIZE')))
+  const [selectedColor, setSelectedColor] = useState(colors.length === 1 ? colors[0] : '')
+  const [selectedSize, setSelectedSize] = useState(allSizes.length === 1 ? allSizes[0] : '')
+  const sizes = Array.from(new Set(product.variants
+    .filter(v => !selectedColor || (v.color || 'Без цвета') === selectedColor)
+    .map(v => v.size || 'ONE SIZE')))
+  const selectedVariant = product.variants.find(v =>
+    (v.color || 'Без цвета') === selectedColor && (v.size || 'ONE SIZE') === selectedSize)
 
   const imageUrl = product.image_url || product.images?.[0] || ''
-  const hasMultipleVariants = product.variants.length > 1
 
   const totalAvail  = product.variants.reduce((s, v) => s + v.available_qty, 0)
   const stockClass  = totalAvail > 4 ? 'card-stock-ok' : totalAvail > 0 ? 'card-stock-low' : 'card-stock-out'
@@ -430,19 +437,27 @@ function ProductCard({
           <p className="card-desc">{product.description}</p>
         )}
 
-        <label className="variant-label">
-          {hasMultipleVariants ? 'Вариант' : 'Размер'}
-          <select
-            className="variant-select"
-            value={selectedVariantId}
-            onChange={e => setSelectedVariantId(e.target.value)}
-            disabled={isInCart}
-          >
-            {product.variants.map(v => (
-              <option key={v.id} value={v.id}>{formatVariant(v)}</option>
-            ))}
-          </select>
-        </label>
+        <div className="card-variant-fields">
+          <label className="variant-label">Цвет
+            <select aria-label={`Цвет товара ${product.name}`} className="variant-select" value={selectedColor} disabled={isInCart || isBlocked}
+              onChange={e => {
+                const color = e.target.value
+                setSelectedColor(color)
+                const availableSizes = Array.from(new Set(product.variants.filter(v => (v.color || 'Без цвета') === color).map(v => v.size || 'ONE SIZE')))
+                if (!availableSizes.includes(selectedSize)) setSelectedSize(availableSizes.length === 1 ? availableSizes[0] : '')
+              }}>
+              <option value="" disabled>Выберите цвет</option>
+              {colors.map(color => <option key={color} value={color}>{color}</option>)}
+            </select>
+          </label>
+          <label className="variant-label">Размер
+            <select aria-label={`Размер товара ${product.name}`} className="variant-select" value={selectedSize} disabled={isInCart || isBlocked}
+              onChange={e => setSelectedSize(e.target.value)}>
+              <option value="" disabled>Выберите размер</option>
+              {sizes.map(size => <option key={size} value={size}>{size}</option>)}
+            </select>
+          </label>
+        </div>
 
         <button
           type="button"
@@ -465,12 +480,11 @@ function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitti
  cart:CartItem[];totalQty:number;pickup:PickupDetails;offices:PickupOffice[];identity:{full_name:string|null;legal_entity:string|null};successCode:string|null;
  isSubmitting:boolean;checkoutError:string|null;checkoutSuccess:string|null;merchAccess:MerchAccess;onRemove:(id:string)=>void;onPickupChange:(value:PickupDetails)=>void;onCheckout:()=>void
 }) {
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   return (
     <aside className="cart-aside" id="cart-aside">
       <div className="cart-header">
         <div>
-          <p className="aside-title">Корзина</p>
+          <p className="aside-title">{cart.length ? 'Оформление заказа' : 'Корзина'}</p>
         </div>
         <span className="cart-counter">{totalQty} / {MAX_UNIQUE_PRODUCTS} позиции</span>
       </div>
@@ -487,40 +501,27 @@ function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitti
         </div>
       ) : (
         <>
-          <div className="cart-lines">
-            {cart.map(item => (
-              <div key={item.variant.id} className="cart-line">
-                <div className="cart-line-info">
-                  <b>{item.product.name}</b>
-                  <span className="cart-line-variant">
-                    {formatVariant(item.variant)} · 1 шт.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="cart-line-remove"
-                  onClick={() => {
-                    if (cart.length === 1) setIsCheckoutOpen(false)
-                    onRemove(item.variant.id)
-                  }}
-                  aria-label={`Удалить ${item.product.name}`}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {!isCheckoutOpen && (
-            <div className="cart-next-step">
-              <p>Контакты и способ получения укажете при оформлении.</p>
-              <button type="button" className="checkout-btn" disabled={!merchAccess.isAllowed} onClick={() => setIsCheckoutOpen(true)}>Оформить заказ →</button>
-            </div>
-          )}
-          {isCheckoutOpen && <div className="cart-form">
-            <button type="button" className="login-text-button" disabled={isSubmitting} onClick={() => setIsCheckoutOpen(false)}>← Назад к выбору</button>
+          <div className="cart-form">
+            <a href="#catalog-grid" className="login-text-button">← Продолжить выбор товаров</a>
 
             <FulfillmentForm value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
+
+            <section className="cart-review" aria-label="Выбранные товары">
+              <h3>Вы выбрали</h3>
+              <ul className="cart-lines">
+                {cart.map(item => (
+                  <li key={item.variant.id} className="cart-line">
+                    <div className="cart-line-info">
+                      <b>{item.product.name}</b>
+                      <span className="cart-line-variant">Размер: {item.variant.size || 'ONE SIZE'}</span>
+                      <span className="cart-line-variant">Цвет: {item.variant.color || 'Без цвета'} · 1 шт.</span>
+                    </div>
+                    <button type="button" className="cart-line-remove" disabled={isSubmitting}
+                      onClick={() => onRemove(item.variant.id)} aria-label={`Удалить ${item.product.name}`}>×</button>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
             {checkoutError && (
               <div className="form-error">{checkoutError}</div>
@@ -537,10 +538,9 @@ function CartAside({cart,totalQty,pickup,offices,identity,successCode,isSubmitti
             >
               {isSubmitting ? 'Оформляем…' : 'Оформить заказ'}
             </button>
-          </div>}
+          </div>
         </>
       )}
-      {cart.length === 0 && <div className="cart-next-step"><p>Контакты и способ получения укажете при оформлении.</p><button type="button" className="checkout-btn" disabled>Оформить заказ →</button></div>}
     </aside>
   )
 }
@@ -601,11 +601,6 @@ function LogoutButton() {
 /*  Helper functions                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function formatVariant(variant: CatalogVariant) {
-  const size  = variant.size  || 'ONE SIZE'
-  const color = variant.color || 'Без цвета'
-  return `${size} · ${color}`
-}
 
 function getUserFirstName(fullName: string | null, email: string | null): string {
   const cleaned = fullName?.trim()

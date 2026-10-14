@@ -4097,3 +4097,13 @@ input:focus, select:focus, textarea:focus {
 .pickup-identity p {margin:0 0 8px}.pickup-address,.pickup-message {white-space:pre-wrap;overflow-wrap:anywhere}
 .pickup-settings {display:grid;gap:20px;max-width:1000px}.pickup-settings .dash-card {padding:24px;display:grid;gap:14px;min-width:0}.pickup-settings input,.pickup-settings textarea {width:100%;box-sizing:border-box}.pickup-settings input[type=checkbox] {width:auto}.pickup-settings p {margin:0;line-height:1.6}.pickup-settings a {width:fit-content;max-width:100%;overflow-wrap:anywhere}.admin-task-notice {display:block;border:1px solid #dbc9ff;border-radius:16px;padding:16px;margin-bottom:20px;background:#f1e8ff;color:#491485;line-height:1.5}
 .confirm-card {min-width:0}.confirm-title {overflow-wrap:anywhere}.confirm-card svg {max-width:100%}.pickup-message {line-height:1.6}
+
+/* Show fulfillment immediately and review selections before submitting. */
+.card-variant-fields {display:grid;gap:10px;min-width:0}
+.card-variant-fields .variant-select {width:100%;min-width:0}
+.cart-review {border-top:1px solid var(--border);padding-top:16px;margin-top:8px;min-width:0}
+.cart-review h3 {font-size:15px;margin:0 0 12px}
+.cart-review .cart-lines {list-style:none;padding:0;margin:0}
+.cart-review .cart-line-info {overflow-wrap:anywhere}
+.cart-line-remove:disabled {opacity:.5;cursor:default}
+#cart-aside {scroll-margin-top:100px}
