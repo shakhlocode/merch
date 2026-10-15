@@ -556,6 +556,7 @@ export type Database = {
       super_set_admin: { Args: {p_email:string;p_unit:string|null;p_super:boolean;p_enabled:boolean}; Returns: undefined }
       super_stock_overview: { Args: Record<string, never>; Returns: unknown }
       super_transfer_stock: { Args: {p_id:string;p_source:string;p_target:string;p_qty:number}; Returns: unknown }
+      super_transfer_stock_to_unit: { Args: {p_id:string;p_source:string;p_unit:string;p_qty:number}; Returns: unknown }
       admin_stock_report: { Args: {p_query?:string}; Returns: unknown }
       admin_handout_report: { Args: {p_from:string;p_until:string;p_scope?:string;p_mode?:string;p_query?:string}; Returns: unknown }
       order_responsible_contacts: { Args: {p_order_ids:string[]}; Returns:{order_id:string;full_name:string;email:string;phone:string|null}[] }

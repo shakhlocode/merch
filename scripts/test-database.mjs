@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql','supabase/tests/business-units.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql','supabase/tests/business-units.sql','supabase/tests/transfer-to-unit.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')
@@ -158,6 +158,23 @@ try {
     (select total_qty=2 and reserved_qty=0 from public.product_variants where id='20000000-0000-4000-8000-000000000081');`)
   if(transferStock.stdout.trim()!=='t')throw new Error('Concurrent transfer changed physical total or ledger')
   console.log('PASS: simultaneous retries transfer stock once, preserving physical total and reservations')
+  function transferToNewUnit(id) {
+    return new Promise((resolve,reject)=>{
+      const child=spawn('docker',['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'])
+      let stdout='',stderr='';child.stdout.on('data',d=>{stdout+=d});child.stderr.on('data',d=>{stderr+=d});child.on('error',reject)
+      child.on('close',status=>status!==0?reject(new Error(stderr)):resolve(JSON.parse(stdout.split('\n').find(l=>l.startsWith('{')))))
+      child.stdin.end(`begin;set local role authenticated;select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000005',true);
+        select public.super_transfer_stock_to_unit('${id}','20000000-0000-0000-0000-000000000007','10000000-0000-4000-8000-000000000003',1);select pg_sleep(0.3);commit;`)
+    })
+  }
+  const newUnitTransfers=await Promise.all([transferToNewUnit('50000000-0000-4000-8000-000000000082'),transferToNewUnit('50000000-0000-4000-8000-000000000083')])
+  if(newUnitTransfers.some(t=>t.already_applied))throw new Error('Distinct transfers incorrectly deduplicated')
+  const newUnitStock=run(['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'],`select
+    (select count(*)=1 and sum(total_qty)=2 from public.product_variants where sku='ACCESS-RACE-A' and unit_id='10000000-0000-4000-8000-000000000003') and
+    (select total_qty=1 from public.product_variants where id='20000000-0000-0000-0000-000000000007') and
+    (select count(*)=3 from public.stock_transfers);`)
+  if(newUnitStock.stdout.trim()!=='t')throw new Error('Concurrent first transfers duplicated target variant or corrupted stock')
+  console.log('PASS: simultaneous first transfers to a BU create one destination variant and apply both quantities')
 
 } finally {
   spawnSync('docker', ['rm', '--force', '--volumes', name], { stdio: 'ignore' })

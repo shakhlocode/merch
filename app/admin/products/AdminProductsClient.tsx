@@ -4,6 +4,7 @@ import { unitFetch } from '@/lib/shop-context'
 
 import { hasStockAlert, stockThreshold } from '@/lib/stock-alerts'
 import AdminShell from '@/components/AdminShell'
+import StockTransferButton from '@/components/StockTransferButton'
 import ProductImage from '@/components/ProductImage'
 import ProductImageUploader from '@/components/ProductImageUploader'
 import { decline, getExportDate, getProductLetter, toCsv } from '@/lib/utils'
@@ -195,6 +196,7 @@ export default function AdminProductsClient({
         <div className="ap-list-actions">
           <span aria-live="polite">Показано {filteredProducts.length} из {products.length} товаров</span>
           <div>
+            {!isCardsMode&&<StockTransferButton/>}
             <button type="button" className="ap-export-btn" onClick={handleExportStockCsv} disabled={filteredProducts.length === 0}>Экспорт CSV</button>
             <button type="button" className="ap-new-btn" onClick={() => setIsCreateOpen(v => !v)}>+ Новый товар</button>
           </div>

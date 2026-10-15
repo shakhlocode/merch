@@ -13,6 +13,7 @@ import EmployeeAccessFields from '@/components/EmployeeAccessFields'
 import { accessUntil, directoryAccessOpen, type AccessMode } from '@/lib/employee-access'
 import EmployeeImport from '@/components/EmployeeImport'
 import AdminShell from '@/components/AdminShell'
+import AdminAccessButton from '@/components/AdminAccessButton'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getExportDate, toCsv } from '@/lib/utils'
@@ -178,8 +179,7 @@ export default function AdminEmployeesClient({
           </div>
 
           <div className="ae-toolbar-right">
-
-
+            <AdminAccessButton />
             <button type="button" className="ae-export-btn" onClick={() => setIsImportOpen(value => !value)}>Загрузить Excel / CSV</button>
             <button
               type="button"
@@ -254,6 +254,7 @@ export default function AdminEmployeesClient({
 
                       <div className="ae-row-caret">{isEditing ? '⌃' : '⌄'}</div>
                     </button>
+                    <div className="ae-role-action"><AdminAccessButton email={employee.email} fullName={employee.full_name}/></div>
 
                     {isEditing && (
                       <EmployeeEditor
