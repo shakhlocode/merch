@@ -102,6 +102,7 @@ export default function CatalogClient({
   const [pickup,setPickup]=useState<PickupDetails>({mode:'office',officeId:'',phone:checkoutDefaults.phone,country:'',city:'',comment:'',visitFrom:'',visitUntil:''})
   const [responsible,setResponsible]=useState<OrderContactData|null>(null)
   const [successCode,setSuccessCode]=useState<string|null>(null)
+  const [successOrderNumber,setSuccessOrderNumber]=useState<string|undefined>()
   const [isSubmitting,    setIsSubmitting]    = useState(false)
   const [checkoutError,   setCheckoutError]   = useState<string | null>(null)
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null)
@@ -220,6 +221,7 @@ export default function CatalogClient({
 
       setCart([])
       setSuccessCode(result.order?.pickup_code ?? null)
+      setSuccessOrderNumber(result.order?.order_number)
       setResponsible(result.order?.contact||null)
       setCheckoutSuccess(`Заказ #${result.order.order_number}. ${result.order.pickup_message}`)
 
@@ -371,6 +373,7 @@ export default function CatalogClient({
                 cart={cart}
                 totalQty={totalQty}
                 pickup={pickup} offices={offices} identity={identity} successCode={successCode}
+                successOrderNumber={successOrderNumber}
                 choices={choices}
                 isSubmitting={isSubmitting}
                 checkoutError={checkoutError}
@@ -487,7 +490,8 @@ function ProductCard({
 /*  CartAside                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CartAside({responsible,choices,officeOnly,cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+function CartAside({responsible,choices,officeOnly,cart,totalQty,pickup,offices,identity,successCode,successOrderNumber,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+ successOrderNumber?:string;
  responsible:OrderContactData|null;
  choices:FulfillmentChoice[];
  officeOnly:boolean;
@@ -503,7 +507,7 @@ function CartAside({responsible,choices,officeOnly,cart,totalQty,pickup,offices,
         <span className="cart-counter">{totalQty} / {MAX_UNIQUE_PRODUCTS} позиции</span>
       </div>
 
-      {checkoutSuccess && <CheckoutSuccessCard contact={responsible} message={checkoutSuccess} code={successCode} />}
+      {checkoutSuccess && <CheckoutSuccessCard contact={responsible} message={checkoutSuccess} code={successCode} orderNumber={successOrderNumber} />}
 
       {cart.length === 0 ? (
         <div className="cart-empty">
@@ -563,7 +567,7 @@ function CartAside({responsible,choices,officeOnly,cart,totalQty,pickup,offices,
 /*  CheckoutSuccessCard                                                         */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CheckoutSuccessCard({ message,code,contact }: { message: string; code:string|null;contact:OrderContactData|null }) {
+function CheckoutSuccessCard({ message,code,contact,orderNumber }: { message: string; code:string|null;contact:OrderContactData|null;orderNumber?:string }) {
   return (
     <div className="confirm-card">
       <div className="confirm-icon">✓</div>
@@ -574,7 +578,7 @@ function CheckoutSuccessCard({ message,code,contact }: { message: string; code:s
           Мы сохранили вашу заявку. Статус обработки можно отслеживать в разделе «Мои заказы».
         </p>
         <OrderContact contact={contact}/>
-        {code && <OrderBarcode value={code} size={260}/>}
+        {code && <OrderBarcode value={code} size={260} orderNumber={orderNumber} downloadable/>}
         <div className="confirm-actions">
           <a href="/orders" className="confirm-primary-link">Перейти в мои заказы</a>
           <a href="#catalog-grid" className="confirm-ghost-link">Продолжить выбор</a>

@@ -342,7 +342,7 @@ function OrderCard({ order,message,contact }: { order: Order; message:string;con
       {/* ── Pickup barcode ── */}
       {!isRejected && !order.is_remote && order.pickup_code && (
         <div className="order-pickup">
-          <OrderBarcode value={order.pickup_code} size={320} />
+          <OrderBarcode value={order.pickup_code} size={320} orderNumber={order.order_number} downloadable />
           <div className="order-pickup-text">
             <b>Код для получения: <span className="order-pickup-num">#{order.order_number}</span></b>
             <span>

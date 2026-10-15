@@ -3854,6 +3854,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Office handout and editable order contents. Keep quiet zones visible on phones. */
 .pickup-barcode { flex-shrink: 0; background: white; border-radius: 10px; overflow: hidden; }
+.barcode-download { width: calc(100% - 16px); margin: 8px; }
 .order-pickup, .ao-handout-card { flex-wrap: wrap; }
 .order-pickup .pickup-barcode, .ao-handout-qr { width: min(100%, 360px); min-width: 0; }
 .order-pickup .order-qr-img { width: auto; }
