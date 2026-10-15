@@ -147,6 +147,7 @@ export default function AdminShell({
           </div>
 
           <div className="admin-topbar-actions">
+            <Link href="/catalog" className="admin-store-link" title="Открыть пользовательский каталог">В магазин</Link>
             <Link href="/admin/issue" className="ao-light-btn">Выдача по коду</Link>
             <form
               className="admin-search admin-card-hover"
