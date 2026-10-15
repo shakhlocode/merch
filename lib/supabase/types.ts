@@ -232,6 +232,7 @@ export type Database = {
           sku:          string | null
           total_qty:    number
           reserved_qty: number
+          low_stock_threshold: number
           is_active:    boolean
           created_at:   string
           updated_at:   string
@@ -244,6 +245,7 @@ export type Database = {
           sku?:          string | null
           total_qty?:    number
           reserved_qty?: number
+          low_stock_threshold?: number
           is_active?:    boolean
         }
         Update: Partial<Database['public']['Tables']['product_variants']['Insert']>
@@ -519,6 +521,8 @@ export type Database = {
       }
     }
     Functions: {
+      admin_stock_report: { Args: {p_query?:string}; Returns: unknown }
+      admin_handout_report: { Args: {p_from:string;p_until:string;p_scope?:string;p_mode?:string;p_query?:string}; Returns: unknown }
       order_responsible_contacts: { Args: {p_order_ids:string[]}; Returns:{order_id:string;full_name:string;email:string;phone:string|null}[] }
       admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string; p_scope?: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
       check_invitation_code: { Args: { p_token_hash: string; p_code_hash: string }; Returns: { ok: boolean; id?: string } }

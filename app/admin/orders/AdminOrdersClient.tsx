@@ -189,6 +189,7 @@ export default function AdminOrdersClient({
         next_action:orderAction(order,tasks.find(t=>t.order_id===order.id)).label,
         status:           workStatusLabel(order),
         created_at:       formatDateTime(order.created_at),
+        received_at:      order.received_at ? formatDateTime(order.received_at) : '',
         full_name:        order.full_name || '',
         email:            order.email || '',
         phone:            order.phone || '',

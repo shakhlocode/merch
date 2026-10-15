@@ -1,3 +1,4 @@
+import type {StockRow} from '@/lib/analytics'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -63,9 +64,7 @@ export default async function AdminEmployeesPage() {
       supabase
         .from('orders')
         .select('id'),
-      supabase
-        .from('products')
-        .select('id, product_variants ( id, total_qty, reserved_qty, is_active )'),
+      supabase.rpc('admin_stock_report',{}),
     ])
 
   if (directoryError) {
@@ -80,16 +79,7 @@ export default async function AdminEmployeesPage() {
     )
   }
 
-  const stockAlertCount =
-    productsForStock?.reduce((sum, product) => {
-      const variants = product.product_variants ?? []
-      const lowCount = variants.filter((variant) => {
-        if (!variant.is_active) return false
-        const available = Number(variant.total_qty) - Number(variant.reserved_qty)
-        return available > 0 && available <= 4
-      }).length
-      return sum + lowCount
-    }, 0) ?? 0
+  const stockAlertCount=((productsForStock||[]) as StockRow[]).filter(v=>v.alert).length
 
   return (
     <AdminEmployeesClient

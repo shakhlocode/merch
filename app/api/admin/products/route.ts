@@ -28,6 +28,7 @@ type Payload = {
   color?: string | null
   sku?: string | null
   initial_qty?: number
+  low_stock_threshold?: number
   qty?: number
   comment?: string | null
   movement_type?: 'income' | 'adjustment'
@@ -224,6 +225,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === 'update_variant') {
+      if (body.low_stock_threshold !== undefined && (!Number.isInteger(body.low_stock_threshold) || body.low_stock_threshold < 0 || body.low_stock_threshold > 1000000)) {
+        return NextResponse.json({error:'Порог должен быть целым числом от 0 до 1000000.'},{status:400})
+      }
       if (!body.variant_id) {
         return NextResponse.json(
           { error: 'Не передан variant_id' },
@@ -247,6 +251,7 @@ export async function POST(request: NextRequest) {
           color: cleanText(body.color),
           sku,
           is_active: body.is_active ?? true,
+          ...(body.low_stock_threshold !== undefined ? {low_stock_threshold:body.low_stock_threshold} : {}),
         })
         .eq('id', body.variant_id)
         .select('id')

@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')

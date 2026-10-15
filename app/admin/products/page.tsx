@@ -102,6 +102,7 @@ export default async function AdminProductsPage() {
         sku,
         total_qty,
         reserved_qty,
+        low_stock_threshold,
         is_active,
         created_at,
         updated_at

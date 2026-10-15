@@ -18,6 +18,7 @@ const navItems = [
   { key:'interface',href:'/admin/interface',label:'Тексты и настройки',description:'Правила, сообщения, офисы',icon:'⚙' },
   { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование Code 128', icon: '▥' },
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
+  { key: 'analytics', href: '/admin/analytics', label: 'Аналитика', description: 'Выдачи, остатки и CSV', icon: '▤' },
   { key: 'orders',    href: '/admin/orders',             label: 'Заказы',  description: 'Заявки и статусы', icon: '◇' },
   { key: 'stock',     href: '/admin/products',           label: 'Склад',   description: 'Остатки товаров',  icon: '▦' },
   { key: 'products',  href: '/admin/products?mode=cards',label: 'Товары',  description: 'Карточки и фото',  icon: '⌑' },
@@ -89,6 +90,7 @@ export default function AdminShell({
               (item.key === 'interface' && pathname === '/admin/interface') ||
               (item.key === 'issue' && pathname === '/admin/issue') ||
               (item.key === 'dashboard' && pathname === '/admin') ||
+              (item.key === 'analytics' && pathname === '/admin/analytics') ||
               (item.key === 'orders'    && pathname === '/admin/orders') ||
               (item.key === 'stock'     && pathname === '/admin/products' && mode !== 'cards') ||
               (item.key === 'products'  && pathname === '/admin/products' && mode === 'cards') ||

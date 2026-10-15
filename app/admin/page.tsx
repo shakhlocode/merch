@@ -1,3 +1,5 @@
+import CsvDownload from '@/components/CsvDownload'
+import type {StockRow} from '@/lib/analytics'
 import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,type WorkStatus} from '@/lib/order-workflow'
 import {orderAction} from '@/lib/order-attention'
 import AdminShell from '@/components/AdminShell'
@@ -9,15 +11,6 @@ type OrderStatus =
   | 'new' | 'review' | 'confirmed' | 'assembling'
   | 'ready' | 'shipped' | 'received' | 'cancelled' | 'rejected'
 
-type AdminDashOrderItem = {
-  id: string
-  product_name: string
-  size: string | null
-  color: string | null
-  sku: string | null
-  qty: number
-}
-
 type AdminDashOrder = {
   id: string
   order_number: string
@@ -28,24 +21,6 @@ type AdminDashOrder = {
   email: string | null
   department: string | null
   created_at: string
-  order_items: AdminDashOrderItem[]
-}
-
-type AdminDashVariant = {
-  id: string
-  size: string | null
-  color: string | null
-  sku: string | null
-  total_qty: number
-  reserved_qty: number
-  is_active: boolean
-}
-
-type AdminDashProduct = {
-  id: string
-  name: string
-  is_active: boolean
-  product_variants: AdminDashVariant[]
 }
 
 export default async function AdminDashboardPage() {
@@ -57,33 +32,28 @@ export default async function AdminDashboardPage() {
 
   const { data: employee } = await supabase
     .from('employees')
-    .select('is_admin, email')
+    .select('is_admin, is_active, email')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!employee?.is_admin) redirect('/catalog')
+  if (!employee?.is_admin || !employee.is_active) redirect('/catalog')
 
-  const [{ data: ordersData }, { data: productsData }, {data:tasks}] = await Promise.all([
-    supabase
-      .from('orders')
-      .select(`
-        id, order_number, employee_id, status, is_remote, full_name, email, department, created_at,
-        order_items ( id, product_name, size, color, sku, qty )
-      `)
-      .order('created_at', { ascending: false }),
-
-    supabase
-      .from('products')
-      .select(`
-        id, name, is_active,
-        product_variants ( id, size, color, sku, total_qty, reserved_qty, is_active )
-      `)
-      .order('created_at', { ascending: false }),
+  // Read every page: dashboard counts and CSV must not stop at 1,000 orders.
+  async function loadOrders() {
+    const rows:AdminDashOrder[]=[]
+    for(let offset=0;;offset+=1000){
+      const {data,error}=await supabase.from('orders').select('id,order_number,employee_id,status,is_remote,full_name,email,department,created_at').order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+999)
+      if(error)throw new Error('Не удалось загрузить сводку заказов')
+      rows.push(...data)
+      if(data.length<1000)return rows
+    }
+  }
+  const [orders,stockResult,{data:tasks}]=await Promise.all([
+    loadOrders(),supabase.rpc('admin_stock_report',{}),
     supabase.from('order_tasks').select('id,order_id,due_on,reserve_until,contacted_at').is('closed_at',null),
   ])
-
-  const orders   = ((ordersData   ?? []) as unknown) as AdminDashOrder[]
-  const products = ((productsData ?? []) as unknown) as AdminDashProduct[]
+  if(stockResult.error)throw new Error('Не удалось загрузить остатки')
+  const stock=stockResult.data as StockRow[]
 
   const activeOrders = orders.filter(
     o => !['received', 'cancelled', 'rejected'].includes(o.status)
@@ -95,18 +65,10 @@ export default async function AdminDashboardPage() {
 
   const attentionCount=orders.filter(o=>orderAction(o,tasks?.find(t=>t.order_id===o.id)).needsAction).length
 
-  const lowStockVariants = products.flatMap(product =>
-    product.product_variants
-      .filter(v => v.is_active)
-      .map(v => ({
-        productName:  product.name,
-        sku:          v.sku,
-        size:         v.size,
-        color:        v.color,
-        availableQty: Math.max(0, Number(v.total_qty) - Number(v.reserved_qty)),
-      }))
-      .filter(v => v.availableQty <= 4)
-  )
+  const lowStockVariants = stock.filter(v=>v.alert).map(v=>({
+    productName:v.product_name,sku:v.sku,size:v.size,color:v.color,
+    availableQty:v.available_qty,threshold:v.low_stock_threshold,
+  }))
 
   const statusCounters = activeWorkStatuses.filter(status=>status!=='shipped'||orders.some(o=>o.is_remote)).map(status => ({
     status,
@@ -125,11 +87,17 @@ export default async function AdminDashboardPage() {
       orderCount={orders.length}
       stockAlertCount={lowStockVariants.length}
     >
+      <div className="pickup-option-actions"><a href="/admin/analytics" className="ao-light-btn">Аналитика выдач за период →</a><CsvDownload filename="uzum-merch-dashboard.csv" label="Сводка CSV" rows={[
+        {'Показатель':'Активных заказов','Количество':String(activeOrders.length)},
+        {'Показатель':'Новые заявки за последние 7 дней','Количество':String(newThisWeek.length)},
+        {'Показатель':'Предупреждений об остатках','Количество':String(lowStockVariants.length)},
+        ...statusCounters.map(s=>({'Показатель':s.label,'Количество':String(s.count)})),
+      ]}/></div>
       {/* ── KPI row ── */}
       <section className="dash-kpi-grid">
         <KpiCard tone="primary"  label="Активных заказов"        value={String(activeOrders.length)}     hint={`из ${orders.length} всего`} />
         <KpiCard tone="default"  label="Новые за неделю"         value={String(newThisWeek.length)}      hint="заявки за последние 7 дней" />
-        <KpiCard tone="danger"   label="Позиций в дефиците"      value={String(lowStockVariants.length)} hint="≤ 4 шт. доступно" />
+        <KpiCard tone="danger"   label="Позиций в дефиците"      value={String(lowStockVariants.length)} hint="по настроенным порогам" />
         <a href="/admin/orders?work=attention" className="dash-kpi-link"><KpiCard tone="default" label="Требуют внимания" value={String(attentionCount)} hint="подготовить, связаться или выдать →"/></a>
       </section>
 
@@ -157,7 +125,7 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">Свежие заказы</h2>
-            <a href="/admin/orders" className="dash-card-link">Все →</a>
+            <div><a href="/admin/orders" className="dash-card-link">Все →</a><CsvDownload filename="uzum-merch-recent-orders.csv" label="CSV списка" rows={recentOrders.map(o=>({'Заказ':o.order_number,'Статус':workStatusLabel(o),'Дата создания':o.created_at}))}/></div>
           </div>
           <div className="dash-recent-list">
             {recentOrders.length === 0 ? (
@@ -182,9 +150,11 @@ export default async function AdminDashboardPage() {
         {/* Низкие остатки */}
         <div className="dash-card">
           <div className="dash-card-head">
-            <h2 className="dash-card-title">Низкие остатки</h2>
+            <h2 className="dash-card-title">Предупреждения об остатках</h2>
             <a href="/admin/products" className="dash-card-link">В склад →</a>
           </div>
+          <a className="ao-light-btn" href="/api/admin/analytics?report=alerts">Экспорт CSV</a>
+          {lowStockVariants.length>7&&<p>Показаны 7 из {lowStockVariants.length}. Все предупреждения — в аналитике и CSV.</p>}
           <div className="dash-stock-list">
             {lowStockVariants.length === 0 ? (
               <p className="dash-empty-text">Критичных остатков нет.</p>
@@ -193,7 +163,7 @@ export default async function AdminDashboardPage() {
                 <div className="dash-stock-mark">{variant.availableQty}</div>
                 <div>
                   <b>{variant.productName}</b>
-                  <span>{formatVariant(variant.size, variant.color)} · SKU: {variant.sku || '—'}</span>
+                  <span>{formatVariant(variant.size, variant.color)} · SKU: {variant.sku || '—'} · порог {variant.threshold} шт.</span>
                 </div>
               </div>
             ))}
@@ -204,7 +174,7 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">Журнал действий</h2>
-            <span className="dash-card-link">CSV</span>
+            <CsvDownload filename="uzum-merch-recent-activity.csv" label="CSV списка" rows={recentActivity.map(o=>({'Заказ':o.order_number,'Статус':workStatusLabel(o),'Дата создания':o.created_at}))}/>
           </div>
           <div className="dash-activity-list">
             {recentActivity.length === 0 ? (

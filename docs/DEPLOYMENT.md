@@ -45,7 +45,8 @@ Vercel. Для приглашений сервер использует encrypte
 
 Офисы, три формата получения и задачи визитов: [FULFILLMENT.md](FULFILLMENT.md).
 Настройки `/admin/interface`, работа с задачами — в `/admin/orders`, сводка — на дашборде.
-Миграции установлены по `20261015001200_order_contacts.sql` включительно.
+Миграции установлены по `20261015001300_inventory_analytics.sql` включительно.
+Выдачи за период, настраиваемые предупреждения и CSV: [ANALYTICS.md](ANALYTICS.md).
 Четыре этапа заказа и контакт назначенного ответственного: [ORDER-WORKFLOW.md](ORDER-WORKFLOW.md).
 Доступ к разделам и персональные приглашения Welcome pack: [STORE-SCOPES.md](STORE-SCOPES.md).
 Изоляция разделов проверена с реальным Supabase Auth и прямыми API-запросами;

@@ -1,5 +1,6 @@
 'use client'
 
+import { hasStockAlert, stockThreshold } from '@/lib/stock-alerts'
 import AdminShell from '@/components/AdminShell'
 import ProductImage from '@/components/ProductImage'
 import ProductImageUploader from '@/components/ProductImageUploader'
@@ -22,6 +23,7 @@ export type AdminVariant = {
   sku: string | null
   total_qty: number
   reserved_qty: number
+  low_stock_threshold: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -128,15 +130,15 @@ export default function AdminProductsClient({
       }
 
       if (product.product_variants.length === 0) {
-        return [{ ...baseRow, variant_size: '', variant_color: '', sku: '', variant_status: '', total_qty: '', reserved_qty: '', available_qty: '', stock_status: 'Нет вариантов' }]
+        return [{ ...baseRow, variant_size: '', variant_color: '', sku: '', variant_status: '', total_qty: '', reserved_qty: '', available_qty: '', low_stock_threshold: '', stock_status: 'Нет вариантов' }]
       }
 
       return product.product_variants.map((variant) => {
         const totalQty     = Number(variant.total_qty)
         const reservedQty  = Number(variant.reserved_qty)
         const availableQty = Math.max(0, totalQty - reservedQty)
-        const stockStatus  = availableQty <= 0 ? 'Нет в наличии' : availableQty <= 4 ? 'Мало осталось' : 'Достаточно'
-        return { ...baseRow, variant_size: variant.size || 'ONE SIZE', variant_color: variant.color || 'Без цвета', sku: variant.sku || '', variant_status: variant.is_active ? 'Активен' : 'В архиве', total_qty: String(totalQty), reserved_qty: String(reservedQty), available_qty: String(availableQty), stock_status: stockStatus }
+        const stockStatus  = availableQty <= 0 ? 'Нет в наличии' : hasStockAlert(variant) ? 'Мало осталось' : 'Достаточно'
+        return { ...baseRow, variant_size: variant.size || 'ONE SIZE', variant_color: variant.color || 'Без цвета', sku: variant.sku || '', variant_status: variant.is_active ? 'Активен' : 'В архиве', total_qty: String(totalQty), reserved_qty: String(reservedQty), available_qty: String(availableQty), low_stock_threshold: String(stockThreshold(variant)), stock_status: stockStatus }
       })
     })
 
@@ -175,9 +177,9 @@ export default function AdminProductsClient({
           <label className="ap-filter-field">Остатки
             <select aria-label="Остатки" className="ap-input" value={stockFilter} onChange={e => setStockFilter(e.target.value as StockFilter)}>
               <option value="all">Все остатки</option>
-              <option value="low">Мало осталось · 1–4 шт.</option>
+              <option value="low">Мало осталось · по порогам</option>
               <option value="zero">Нет в наличии</option>
-              <option value="normal">Достаточно · от 5 шт.</option>
+              <option value="normal">Достаточно · выше порога</option>
             </select>
           </label>
           <label className="ap-filter-field">Показывать
@@ -206,7 +208,7 @@ export default function AdminProductsClient({
           <SummaryMetric label="Всего товаров" value={String(totals.totalProducts)} hint={`Включено: ${totals.activeProducts} · Вариантов: ${totals.totalVariants}`} />
           <SummaryMetric label="На складе" value={`${totals.totalQty} шт.`} />
           <SummaryMetric label="Зарезервировано" value={`${totals.reservedQty} шт.`} />
-          <SummaryMetric label="Доступно" value={`${totals.availableQty} шт.`} hint={`Мало осталось: ${totals.lowVariants} ${decline(totals.lowVariants, ['вариант', 'варианта', 'вариантов'])} (1–4 шт.)`} />
+          <SummaryMetric label="Доступно" value={`${totals.availableQty} шт.`} hint={`Мало осталось: ${totals.lowVariants} ${decline(totals.lowVariants, ['вариант', 'варианта', 'вариантов'])} по настроенным порогам`} />
         </section>
 
         {/* Content */}
@@ -822,6 +824,7 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
   const [color,        setColor]        = useState(variant.color ?? '')
   const [sku,          setSku]          = useState(variant.sku ?? '')
   const [isActive,     setIsActive]     = useState(variant.is_active)
+  const [threshold,setThreshold]=useState(String(stockThreshold(variant)))
   const [movementType, setMovementType] = useState<'income' | 'adjustment'>('income')
   const [qty,          setQty]          = useState('')
   const [comment,      setComment]      = useState('')
@@ -832,13 +835,14 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
   const availableQty = Math.max(0, Number(variant.total_qty) - Number(variant.reserved_qty))
 
   async function handleUpdateVariant() {
+    if (!threshold.trim() || !Number.isInteger(Number(threshold)) || Number(threshold)<0 || Number(threshold)>1000000) {setError('Порог должен быть целым числом от 0 до 1000000.');return}
     setIsSaving(true); setMessage(null); setError(null)
 
     try {
       const response = await fetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_variant', variant_id: variant.id, size, color, sku, is_active: isActive }),
+        body: JSON.stringify({ action: 'update_variant', variant_id: variant.id, size, color, sku, is_active: isActive, low_stock_threshold: Number(threshold) }),
       })
       const result = await response.json()
       if (!response.ok) { setError(result.error || 'Не удалось обновить вариант'); return }
@@ -883,6 +887,8 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
         <Metric label="Зарезервировано" value={String(variant.reserved_qty)} />
         <Metric label="Доступно" value={String(availableQty)} />
       </div>
+      <label className="stock-threshold-field">Предупреждать при остатке ≤, шт.<input aria-label="Порог предупреждения" type="number" min="0" max="1000000" step="1" value={threshold} onChange={e=>setThreshold(e.target.value)} className="ap-input"/><small>Для этого размера и цвета. 0 — предупреждать, когда товар закончился.</small></label>
+      {variant.is_active&&hasStockAlert(variant)&&<p className="stock-alert-note">{availableQty===0?'Товар закончился.':`Осталось ${availableQty} шт. доступно.`} Порог: {stockThreshold(variant)} шт.</p>}
       <div className="ap-variant-save">
         <label className="ap-active-label"><input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />Вариант доступен</label>
         <button type="button" onClick={handleUpdateVariant} disabled={isSaving} className="ap-small-action">Сохранить вариант</button>
@@ -933,7 +939,7 @@ function getProductStats(product: AdminProduct) {
   const active      = product.product_variants.filter((v) => v.is_active)
 
   const zeroVariants = active.filter((v) => Number(v.total_qty) - Number(v.reserved_qty) <= 0).length
-  const lowVariants  = active.filter((v) => { const a = Number(v.total_qty) - Number(v.reserved_qty); return a > 0 && a <= 4 }).length
+  const lowVariants = active.filter(hasStockAlert).length
 
   return { totalQty, reservedQty, availableQty: Math.max(0, totalQty - reservedQty), zeroVariants, lowVariants }
 }
