@@ -155,7 +155,7 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">Предупреждения об остатках</h2>
-            <ShopAnchor href="/admin/products" className="dash-card-link">В склад →</ShopAnchor>
+            <ShopAnchor href="/admin/products" className="dash-card-link">К товарам →</ShopAnchor>
           </div>
           <ShopAnchor className="ao-light-btn" href="/api/admin/analytics?report=alerts">Экспорт CSV</ShopAnchor>
           {lowStockVariants.length>7&&<p>Показаны 7 из {lowStockVariants.length}. Все предупреждения — в аналитике и CSV.</p>}

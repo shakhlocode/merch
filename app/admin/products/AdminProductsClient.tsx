@@ -64,14 +64,12 @@ export default function AdminProductsClient({
   orderCount,
 }: Props) {
   const searchParams  = useSearchParams()
-  const isCardsMode   = searchParams.get('mode') === 'cards'
   const queryFromUrl  = searchParams.get('q') ?? ''
 
   const [search,            setSearch]           = useState(queryFromUrl)
   const [selectedCategory,  setSelectedCategory] = useState<string>('all')
   const [stockFilter,       setStockFilter]      = useState<StockFilter>('all')
   const [productStatus, setProductStatus] = useState('active')
-  const [expandedProductId, setExpandedProductId] = useState<string | null>(null)
   const [editingProductId,  setEditingProductId]  = useState<string | null>(null)
   const [isCreateOpen,      setIsCreateOpen]      = useState(false)
 
@@ -160,7 +158,7 @@ export default function AdminProductsClient({
   return (
     <AdminShell
       adminEmail={adminEmail}
-      title={isCardsMode ? 'Карточки товара' : 'Товары и остатки'}
+      title="Товары"
       subtitle="Админ-панель · merch.uzum.tech"
       orderCount={orderCount}
       stockAlertCount={products.filter(p => p.is_active).reduce((sum,p) => sum + getProductStats(p).lowVariants,0)}
@@ -196,7 +194,6 @@ export default function AdminProductsClient({
         <div className="ap-list-actions">
           <span aria-live="polite">Показано {filteredProducts.length} из {products.length} товаров</span>
           <div>
-            {!isCardsMode&&<StockTransferButton/>}
             <button type="button" className="ap-export-btn" onClick={handleExportStockCsv} disabled={filteredProducts.length === 0}>Экспорт CSV</button>
             <button type="button" className="ap-new-btn" onClick={() => setIsCreateOpen(v => !v)}>+ Новый товар</button>
           </div>
@@ -223,7 +220,7 @@ export default function AdminProductsClient({
             <p className="ap-empty-text">Измените поиск, категорию или складской фильтр.</p>
           </section>
 
-        ) : isCardsMode ? (
+        ) : (
           <>
             <section className="ap-cards-grid">
               {filteredProducts.map((product) => {
@@ -234,7 +231,6 @@ export default function AdminProductsClient({
                     product={product}
                     isEditing={isEditing}
                     onEdit={() => {
-                      setExpandedProductId(null)
                       setEditingProductId(isEditing ? null : product.id)
                     }}
                   />
@@ -245,32 +241,6 @@ export default function AdminProductsClient({
 
           </>
 
-        ) : (
-          <section className="ap-product-list">
-            {filteredProducts.map((product) => {
-              const isExpanded = expandedProductId === product.id
-              const isEditing  = editingProductId  === product.id
-
-              return (
-                <div key={product.id} className="ap-product-group">
-                  <ProductRow
-                    product={product}
-                    isExpanded={isExpanded}
-                    isEditing={isEditing}
-                    onToggle={() => {
-                      setEditingProductId(null)
-                      setExpandedProductId(isExpanded ? null : product.id)
-                    }}
-                    onEdit={() => {
-                      setExpandedProductId(null)
-                      setEditingProductId(isEditing ? null : product.id)
-                    }}
-                  />
-
-                </div>
-              )
-            })}
-          </section>
         )}
 
       </section>
@@ -463,7 +433,7 @@ function ProductCardMode({
 
         <div className="ap-card-meta">
           <div className="ap-card-meta-item"><span>Раздел</span><b>{product.placement === 'both' ? 'Каталог и Welcome-pack' : product.placement === 'welcome' ? 'Welcome-pack' : 'Основной каталог'}</b></div>
-          <div className="ap-card-meta-item"><span>Вариантов</span><b>{product.product_variants.length}</b></div>
+          <div className="ap-card-meta-item"><span>На складе</span><b>{stats.totalQty} шт.</b></div><div className="ap-card-meta-item"><span>Зарезервировано</span><b>{stats.reservedQty} шт.</b></div>
           <div className="ap-card-meta-item"><span>Доступно</span><b>{stats.availableQty} шт.</b></div>
         </div>
 
@@ -474,7 +444,7 @@ function ProductCardMode({
         >
           {isEditing ? 'Редактируется' : 'Редактировать карточку'}
         </button>
-        <ProductArchiveButton product={product} />
+        <div className="ap-card-secondary-actions"><StockTransferButton product={product}/><ProductArchiveButton product={product} /></div>
       </div>
     </article>
   )
@@ -482,90 +452,6 @@ function ProductCardMode({
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  ProductRow                                                                   */
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-function ProductRow({
-  product,
-  isExpanded,
-  isEditing,
-  onToggle,
-  onEdit,
-}: {
-  product: AdminProduct
-  isExpanded: boolean
-  isEditing: boolean
-  onToggle: () => void
-  onEdit: () => void
-}) {
-  const stats    = getProductStats(product)
-  const imageUrl = product.image_url || product.images?.[0] || ''
-
-  return (
-    <article className={`ap-product-card${isExpanded ? ' ap-product-card-expanded' : ''}${isEditing ? ' ap-product-card-editing' : ''}`}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onToggle}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
-        className={`ap-product-row${isExpanded || isEditing ? ' ap-product-row-active' : ''}`}
-      >
-        <div className="ap-product-art">
-          {imageUrl ? (
-            <ProductImage
-              src={imageUrl}
-              alt={product.name}
-              className="ap-product-image"
-              sizes="64px"
-            />
-          ) : (
-            <div className="ap-product-placeholder">{getProductLetter(product.name)}</div>
-          )}
-        </div>
-
-        <div className="ap-product-name-cell">
-          <span>{getCategoryName(product)}</span>
-          <b>{product.name}</b>
-          {!product.is_active && <small>Отключён</small>}
-        </div>
-
-        <Metric label="Всего на складе"    value={`${stats.totalQty} шт.`} />
-        <Metric label="Нет в наличии"   value={String(stats.zeroVariants)} tone="pink" />
-        <Metric label="Мало осталось"     value={String(stats.lowVariants)} tone="pink" />
-        <Metric label="Вариантов"          value={String(product.product_variants.length)} />
-
-        <div className="ap-row-actions">
-          <button
-            type="button"
-            className={`ap-light-btn${isExpanded ? ' ap-light-btn-active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); onToggle() }}
-          >
-            Остатки
-          </button>
-
-          <button
-            type="button"
-            className={`ap-light-btn${isEditing ? ' ap-light-btn-active' : ''}`}
-            onClick={(e) => { e.stopPropagation(); onEdit() }}
-          >
-            Редактировать
-          </button>
-
-          <ProductArchiveButton product={product} />
-          <span className="ap-chevron">{isExpanded ? '⌃' : '⌄'}</span>
-        </div>
-      </div>
-
-      {isExpanded && (
-        <section className="ap-inventory-expanded">
-          <VariantsEditor product={product} />
-        </section>
-      )}
-    </article>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-/*  ProductEditPanel                                                             */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function ProductEditDialog({ product, onClose }: { product: AdminProduct; onClose: () => void }) {
@@ -626,7 +512,7 @@ function ProductEditPanel({ product }: { product: AdminProduct }) {
             )}
           </div>
           <div>
-            <div className="ap-edit-breadcrumb">Склад / {product.name}</div>
+            <div className="ap-edit-breadcrumb">Товары / {product.name}</div>
             <h2 className="ap-edit-title">{product.name}</h2>
             <div className="ap-edit-metrics">
               <Metric label="Всего на складе" value={`${stats.totalQty} шт.`} />

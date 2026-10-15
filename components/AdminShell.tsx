@@ -23,8 +23,7 @@ const navItems = [
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
   { key: 'analytics', href: '/admin/analytics', label: 'Аналитика', description: 'Выдачи, остатки и CSV', icon: '▤' },
   { key: 'orders',    href: '/admin/orders',             label: 'Заказы',  description: 'Заявки и статусы', icon: '◇' },
-  { key: 'stock',     href: '/admin/products',           label: 'Склад',   description: 'Остатки товаров',  icon: '▦' },
-  { key: 'products',  href: '/admin/products?mode=cards',label: 'Товары',  description: 'Карточки и фото',  icon: '⌑' },
+  { key: 'products',  href: '/admin/products',label: 'Товары',  description: 'Карточки и остатки',  icon: '⌑' },
   { key: 'employees', href: '/admin/employees',          label: 'Сотрудники',  description: 'HR-реестр и доступ',      icon: 'HR' },
 ]
 
@@ -38,7 +37,6 @@ export default function AdminShell({
   const pathname     = usePathname()
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const mode         = searchParams.get('mode')
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [topSearch,    setTopSearch]    = useState('')
@@ -49,7 +47,7 @@ export default function AdminShell({
 
   function getBadge(itemKey: string) {
     if (itemKey === 'orders' && typeof orderCount     === 'number') return orderCount
-    if (itemKey === 'stock'  && typeof stockAlertCount === 'number') return stockAlertCount
+    if (itemKey === 'products'  && typeof stockAlertCount === 'number') return stockAlertCount
     return null
   }
 
@@ -96,8 +94,7 @@ export default function AdminShell({
               (item.key === 'dashboard' && pathname === '/admin') ||
               (item.key === 'analytics' && pathname === '/admin/analytics') ||
               (item.key === 'orders'    && pathname === '/admin/orders') ||
-              (item.key === 'stock'     && pathname === '/admin/products' && mode !== 'cards') ||
-              (item.key === 'products'  && pathname === '/admin/products' && mode === 'cards') ||
+              (item.key === 'products'  && pathname === '/admin/products') ||
               (item.key === 'employees' && pathname === '/admin/employees')
 
             const badge = getBadge(item.key)
