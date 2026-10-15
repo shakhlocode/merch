@@ -142,9 +142,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const {data:contacts}=await supabase.rpc('order_responsible_contacts',{p_order_ids:[data.id]})
     return NextResponse.json({
       ok: true,
-      order: data,
+      order: {...data,contact:contacts?.[0]||null},
     })
   } catch (error) {
     const message =

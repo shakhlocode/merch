@@ -17,15 +17,13 @@ export function orderAction(
     return { label: 'Визит завершён — проверьте резерв', needsAction: true }
   if (task && task.due_on <= today && !task.contacted_at)
     return { label: 'Связаться с приехавшим сотрудником', needsAction: true }
-  if (order.status === 'review')
-    return { label: 'Проверить заказ', needsAction: true }
-  if (['new', 'confirmed', 'assembling'].includes(order.status))
+  if (['new', 'review', 'confirmed', 'assembling'].includes(order.status))
     return { label: 'Подготовить и упаковать', needsAction: true }
   if (order.status === 'ready' && task && task.due_on > today)
     return { label: 'Подготовлен — ждём приезда', needsAction: false }
   if (order.status === 'ready')
     return {
-      label: order.is_remote ? 'Согласовать отправку' : 'Выдать по штрихкоду',
+      label: order.is_remote ? 'Отправить мерч' : 'Выдать по штрихкоду',
       needsAction: true,
     }
   return {

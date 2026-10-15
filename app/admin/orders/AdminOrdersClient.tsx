@@ -1,5 +1,7 @@
 'use client'
 
+import OrderContact from '@/components/OrderContact'
+import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,workflowSteps,type WorkStatus} from '@/lib/order-workflow'
 import {fulfillmentLabel} from '@/lib/fulfillment'
 import {orderAction,type VisitReminder} from '@/lib/order-attention'
 import {tashkentToday} from '@/lib/fulfillment'
@@ -13,16 +15,6 @@ import Link from 'next/link'
 import OrderItemsEditor, { type EditableVariant } from '@/components/OrderItemsEditor'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
 import { getExportDate, getProductLetter, toCsv } from '@/lib/utils'
-
-type PickupStatus = 'pending' | 'packed' | 'handed_owner' | 'handed_other' | 'refused'
-
-const pickupStatusLabels: Record<PickupStatus, string> = {
-  pending:      'Ожидает',
-  packed:       'Упакован',
-  handed_owner: 'Отдан заказчику',
-  handed_other: 'Отдан другу заказчика',
-  refused:      'Отказались забрать',
-}
 
 export type AdminOrderItem = {
   id: string
@@ -80,23 +72,11 @@ type AdminOrdersClientProps = {
   adminEmail: string
   stockAlertCount: number
   variants: EditableVariant[]
-  admins: { id: string; full_name: string }[]
+  admins: { id: string; full_name: string; email?:string|null; phone?:string|null }[]
   events: { id: string; order_id: string; action: string; data: Record<string, unknown>; created_at: string }[]
 }
 
 type SortMode = 'date_desc' | 'date_asc' | 'number_desc' | 'number_asc'
-
-const statusLabels: Record<OrderStatus, string> = {
-  new: 'Новый',
-  review: 'На проверке',
-  confirmed: 'Подтверждён',
-  assembling: 'Собирается',
-  ready: 'Готов к выдаче',
-  shipped: 'Отправлен',
-  received: 'Выдали',
-  cancelled: 'Отменён',
-  rejected: 'Отклонён',
-}
 
 const deliveryLabels: Record<DeliveryType, string> = {
   office: 'В офис',
@@ -104,18 +84,6 @@ const deliveryLabels: Record<DeliveryType, string> = {
   pickup: 'Самовывоз',
   courier: 'Курьер',
 }
-
-const statusOptions: OrderStatus[] = [
-  'new',
-  'review',
-  'confirmed',
-  'assembling',
-  'ready',
-  'shipped',
-  'received',
-  'cancelled',
-  'rejected',
-]
 
 export default function AdminOrdersClient({
   orders,
@@ -129,7 +97,8 @@ export default function AdminOrdersClient({
   const [scopeFilter,setScopeFilter]=useState('all')
   useEffect(()=>setWorkFilter(workFromUrl),[workFromUrl])
 
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<WorkStatus | 'all'>('all')
+  const [showClosed,setShowClosed]=useState(false)
   const [search, setSearch] = useState(queryFromUrl)
   const [sortMode, setSortMode] = useState<SortMode>('date_desc')
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
@@ -157,8 +126,9 @@ export default function AdminOrdersClient({
 
   const counters = useMemo(() => {
     return orders.reduce<Record<string, number>>((acc, order) => {
-      acc.all = (acc.all ?? 0) + 1
-      acc[order.status] = (acc[order.status] ?? 0) + 1
+      const stage=workStatus(order)
+      if(stage!=='closed')acc.all = (acc.all ?? 0) + 1
+      acc[stage] = (acc[stage] ?? 0) + 1
       return acc
     }, {})
   }, [orders])
@@ -168,7 +138,7 @@ export default function AdminOrdersClient({
 
     const result = orders.filter((order) => {
       const statusMatch =
-        statusFilter === 'all' || order.status === statusFilter
+        (showClosed?workStatus(order)==='closed':workStatus(order)!=='closed') && (statusFilter === 'all' || workStatus(order) === statusFilter)
 
       const itemsMatch = order.order_items.some((item) =>
         [item.product_name, item.size, item.color, item.sku]
@@ -203,7 +173,7 @@ export default function AdminOrdersClient({
         return b.order_number.localeCompare(a.order_number, 'ru', { numeric: true })
       return a.order_number.localeCompare(b.order_number, 'ru', { numeric: true })
     })
-  }, [orders, search, sortMode, statusFilter,workFilter,scopeFilter,tasks])
+  }, [orders, search, sortMode, statusFilter,workFilter,scopeFilter,tasks,showClosed])
 
   function handleExportCsv() {
     const rows = filteredOrders.map((order) => {
@@ -217,7 +187,7 @@ export default function AdminOrdersClient({
         order_number:     order.order_number,
         order_scope:order.order_scope,
         next_action:orderAction(order,tasks.find(t=>t.order_id===order.id)).label,
-        status:           statusLabels[order.status],
+        status:           workStatusLabel(order),
         created_at:       formatDateTime(order.created_at),
         full_name:        order.full_name || '',
         email:            order.email || '',
@@ -227,7 +197,9 @@ export default function AdminOrdersClient({
         delivery_type:    deliveryLabels[order.delivery_type],
         delivery_address: order.delivery_address || '',
         is_remote: order.is_remote ? 'Да' : 'Нет',
-        contact: order.remote_contact_name || '',
+        contact: admins.find(a=>a.id===order.assigned_to)?.full_name || order.remote_contact_name || '',
+        contact_email: admins.find(a=>a.id===order.assigned_to)?.email||'',
+        contact_phone: admins.find(a=>a.id===order.assigned_to)?.phone||'',
         items_qty:        String(getTotalQty(order)),
         items:            itemsText,
         comment:          order.comment || '',
@@ -261,11 +233,13 @@ export default function AdminOrdersClient({
       stockAlertCount={stockAlertCount}
     >
       <section className="ao-page">
-        <StatusTabs
+        {!showClosed&&<StatusTabs
+          statuses={activeWorkStatuses.filter(s=>s!=='shipped'||orders.some(o=>o.is_remote))}
           activeStatus={statusFilter}
           counters={counters}
           onChange={setStatusFilter}
-        />
+        />}
+        <div className="ao-closed-switch"><button type="button" className="ao-light-btn" aria-pressed={showClosed} onClick={()=>{setShowClosed(v=>!v);setStatusFilter('all');setWorkFilter('all')}}>{showClosed?'← К рабочим заказам':`Отменённые заявки (${counters.closed||0})`}</button>{showClosed&&<span>Архив отменённых заявок</span>}</div>
 
         <section className="ao-toolbar">
           <div className="ao-search-box">
@@ -407,8 +381,8 @@ export default function AdminOrdersClient({
                       </div>
 
                       <div>
-                        <span className={getStatusBadgeClass(order.status)}>
-                          {statusLabels[order.status]}
+                        <span className={getStatusBadgeClass(workStatus(order))}>
+                          {workStatusLabel(order)}
                         </span><small className="ao-action-note">{orderAction(order,tasks.find(t=>t.order_id===order.id)).label}</small>
                       </div>
 
@@ -434,13 +408,15 @@ export default function AdminOrdersClient({
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function StatusTabs({
+  statuses,
   activeStatus,
   counters,
   onChange,
 }: {
-  activeStatus: OrderStatus | 'all'
+  statuses:WorkStatus[]
+  activeStatus: WorkStatus | 'all'
   counters: Record<string, number>
-  onChange: (status: OrderStatus | 'all') => void
+  onChange: (status: WorkStatus | 'all') => void
 }) {
   return (
     <section className="ao-status-tabs">
@@ -453,14 +429,14 @@ function StatusTabs({
         <span>{counters.all ?? 0}</span>
       </button>
 
-      {statusOptions.map((status) => (
+      {statuses.map((status) => (
         <button
           key={status}
           type="button"
           onClick={() => onChange(status)}
           className={`ao-status-tab${activeStatus === status ? ' ao-status-tab-active' : ''}`}
         >
-          {statusLabels[status]}
+          {workStatusLabels[status]}
           <span>{counters[status] ?? 0}</span>
         </button>
       ))}
@@ -475,21 +451,21 @@ function StatusTabs({
 function OrderDetail({ order, variants, admins, events,task }: { task?:VisitReminder; order: AdminOrder; variants: EditableVariant[]; admins: AdminOrdersClientProps['admins']; events: AdminOrdersClientProps['events'] }) {
   const router = useRouter()
 
-  const [status, setStatus] = useState<OrderStatus>(order.status)
+  const [status, setStatus] = useState<OrderStatus>(workStatus(order)==='closed'?order.status:workStatus(order) as OrderStatus)
+  const [confirmCancel,setConfirmCancel]=useState(false)
+  const terminal=['received','cancelled','rejected'].includes(order.status)
   const [adminComment, setAdminComment] = useState(order.admin_comment ?? '')
   const [trackingNumber, setTrackingNumber] = useState(order.tracking_number ?? '')
 
   const [storageLocation, setStorageLocation] = useState(order.storage_location ?? '')
-  const [pickupStatus] = useState<PickupStatus>(
-    (order.pickup_status as PickupStatus) || 'pending'
-  )
   const [assignedTo, setAssignedTo] = useState(order.assigned_to ?? '')
+  const selectedAdmin = admins.find(admin => admin.id === assignedTo)
 
   const [isSaving, setIsSaving] = useState(false)
   const [error,    setError]    = useState<string | null>(null)
   const [success,  setSuccess]  = useState<string | null>(null)
 
-  async function handleSave() {
+  async function handleSave(nextStatus?:OrderStatus) {
     setIsSaving(true)
     setError(null)
     setSuccess(null)
@@ -499,7 +475,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status,
+          status: nextStatus || (status===workStatus(order)?order.status:status),
           version: order.version,
           assigned_to: assignedTo || null,
           admin_comment: adminComment,
@@ -631,15 +607,14 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         <div className="ao-handout-body">
           <h3 className="ao-card-title">Выдача заказа</h3>
           <p className="ao-manage-text">
-            Сотрудник показывает этот код при получении. Текущий статус выдачи:{' '}
-            <b>{pickupStatusLabels[pickupStatus]}</b>.
+            Сотрудник показывает код при получении. Выдавать можно только заказ со статусом «Можно забирать».
           </p>
           <button type="button" className="ao-light-btn" onClick={handlePrintLabel}>
             🖶 Напечатать наклейку
           </button>
         </div>
       </div>}
-      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {order.remote_contact_name || 'Назначьте администратора ниже'}. Штрихкод не выдаётся.</p>}
+      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора ниже'}. Штрихкод не выдаётся.</p>}
       {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
       {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
       <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants.filter(v=>!v.placement||v.placement==='both'||v.placement===order.order_scope||order.order_items.some(i=>i.variant_id===v.id))} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
@@ -659,12 +634,20 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           <label className="ao-label">
             Статус
             <select
+              aria-label="Статус заказа"
+              disabled={terminal}
               value={status}
               onChange={(e) => setStatus(e.target.value as OrderStatus)}
               className="ao-input"
             >
-              {statusOptions.filter(opt => order.is_remote || !['received','shipped'].includes(opt) || opt === order.status).map((opt) => (
-                <option key={opt} value={opt}>{statusLabels[opt]}</option>
+              {workStatus(order) === 'closed' ? (
+                <option value={order.status}>Отменена</option>
+              ) : workflowSteps(order.is_remote).map(opt => (
+                <option key={opt} value={opt} disabled={
+                  (!order.is_remote && opt === 'received' && order.status !== 'received') ||
+                  (order.status === 'shipped' && ['new', 'assembling'].includes(opt)) ||
+                  (order.is_remote && opt === 'received' && !['shipped', 'received'].includes(order.status))
+                }>{workStatusLabels[opt as WorkStatus]}</option>
               ))}
             </select>
           </label>
@@ -691,13 +674,23 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
             />
           </label>
 
+          {!order.is_remote&&!terminal&&<p className="ao-manage-text">Статус «Получен» выставляется автоматически при сканировании кода.</p>}
           <label className="ao-label">Ответственный администратор
             <select className="ao-input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
               <option value="">Не назначен</option>
+              {assignedTo&&!admins.some(a=>a.id===assignedTo)&&<option value={assignedTo} disabled>Нужен новый ответственный</option>}
               {admins.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
             </select>
           </label>
 
+          <div className="ao-label-wide">
+            <OrderContact contact={selectedAdmin ? {
+              full_name: selectedAdmin.full_name,
+              email: selectedAdmin.email || null,
+              phone: selectedAdmin.phone || null,
+            } : null}/>
+            <small>Изменение ответственного применяется после сохранения.</small>
+          </div>
           <label className="ao-label-wide">
             Комментарий администратора
             <textarea
@@ -714,11 +707,21 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           <button
             type="button"
             className="ao-save-btn"
-            onClick={handleSave}
+            onClick={()=>handleSave()}
             disabled={isSaving}
           >
             {isSaving ? 'Сохраняем...' : 'Сохранить изменения'}
           </button>
+          {!terminal && <div className="ao-label-wide">
+            {confirmCancel ? <div className="ao-cancel-confirm">
+              <p>{order.status === 'shipped'
+                ? 'Отменить отправленный заказ? Его позиции вернутся на склад. Подтверждайте только после возврата товара.'
+                : 'Отменить заявку? Зарезервированные позиции снова станут доступны.'}</p>
+              <button className="ao-light-btn" type="button" disabled={isSaving} onClick={() => handleSave('cancelled')}>Подтвердить отмену</button>{' '}
+              <button className="ao-light-btn" type="button" disabled={isSaving} onClick={() => setConfirmCancel(false)}>Оставить заказ</button>
+            </div> : <button className="ao-light-btn" type="button" disabled={isSaving} onClick={() => setConfirmCancel(true)}>Отменить заявку</button>}
+          </div>}
+
         </div>
       </div>
     </section>
@@ -797,9 +800,9 @@ function getItemMarkClass(index: number): string {
   return mod === 0 ? 'ao-item-mark' : `ao-item-mark ao-item-mark-${mod}`
 }
 
-function getStatusBadgeClass(status: OrderStatus): string {
-  if (status === 'shipped'   || status === 'received')   return 'ao-badge ao-badge-green'
-  if (status === 'confirmed' || status === 'assembling') return 'ao-badge ao-badge-blue'
-  if (status === 'cancelled' || status === 'rejected')   return 'ao-badge ao-badge-red'
+function getStatusBadgeClass(status: WorkStatus): string {
+  if (status === 'ready' || status === 'shipped' || status === 'received')   return 'ao-badge ao-badge-green'
+  if (status === 'assembling') return 'ao-badge ao-badge-blue'
+  if (status === 'closed')   return 'ao-badge ao-badge-red'
   return 'ao-badge'
 }

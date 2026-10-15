@@ -23,15 +23,15 @@ export type MovementType =
   | 'adjustment'
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  new:        'Новый заказ',
-  review:     'На проверке',
-  confirmed:  'Подтвержден',
-  assembling: 'Собирается',
-  ready:      'Готов к выдаче',
-  shipped:    'Отправлен',
-  received:   'Выдали',
-  cancelled:  'Отменен',
-  rejected:   'Отклонен',
+  new:        'Заявка',
+  review:     'Заявка',
+  confirmed:  'Заявка',
+  assembling: 'Сборка',
+  ready:      'Можно забирать',
+  shipped:    'Отправка',
+  received:   'Получен',
+  cancelled:  'Отменена',
+  rejected:   'Отменена',
 }
 
 export const DELIVERY_TYPE_LABELS: Record<DeliveryType, string> = {
@@ -519,6 +519,7 @@ export type Database = {
       }
     }
     Functions: {
+      order_responsible_contacts: { Args: {p_order_ids:string[]}; Returns:{order_id:string;full_name:string;email:string;phone:string|null}[] }
       admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string; p_scope?: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
       check_invitation_code: { Args: { p_token_hash: string; p_code_hash: string }; Returns: { ok: boolean; id?: string } }
       claim_invitation: { Args: { p_id: string; p_user_id: string; p_code_hash: string | null }; Returns: { ok: boolean; next: string } }

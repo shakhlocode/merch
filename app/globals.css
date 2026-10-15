@@ -1930,7 +1930,7 @@ input:focus, select:focus, textarea:focus {
 /* ── Progress timeline ── */
 .order-timeline {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 .timeline-step {
@@ -3113,7 +3113,7 @@ input:focus, select:focus, textarea:focus {
   .orders-head     { flex-direction: column; align-items: flex-start; gap: 16px; }
   .order-mid       { grid-template-columns: 1fr; gap: 14px; }
   .order-thumbs    { max-width: none; }
-  .order-timeline  { grid-template-columns: repeat(3, 1fr); }
+  .order-timeline  { grid-template-columns: repeat(2, 1fr); }
 
   /* Welcome */
   .welcome-hero { grid-template-columns: 1fr; gap: 28px; }
@@ -4100,6 +4100,10 @@ input:focus, select:focus, textarea:focus {
 .pickup-form option:disabled { color: #9791a8; }
 .pickup-option-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .pickup-delete-confirm { padding: 12px; border: 1px solid #f4c8c8; border-radius: 12px; }
+.order-contact { display: grid; gap: 6px; margin: 14px 0; padding: 14px; border: 1px solid var(--border); border-radius: 14px; overflow-wrap: anywhere; }
+.order-contact a { color: var(--accent, #7000ff); }
+.ao-closed-switch { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+.ao-cancel-confirm { padding: 12px; border: 1px solid #f4c8c8; border-radius: 12px; }
 
 /* Checkout and administrator pickup settings */
 .pickup-form {border:0;padding:0;margin:0;min-width:0;display:grid;gap:16px;width:100%}

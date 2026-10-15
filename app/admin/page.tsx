@@ -1,3 +1,4 @@
+import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,type WorkStatus} from '@/lib/order-workflow'
 import {orderAction} from '@/lib/order-attention'
 import AdminShell from '@/components/AdminShell'
 import { createClient } from '@/lib/supabase/server'
@@ -46,22 +47,6 @@ type AdminDashProduct = {
   is_active: boolean
   product_variants: AdminDashVariant[]
 }
-
-const statusLabels: Record<OrderStatus, string> = {
-  new:        'Новый',
-  review:     'На проверке',
-  confirmed:  'Подтверждён',
-  assembling: 'Собирается',
-  ready: 'Готов к выдаче',
-  shipped:    'Отправлен',
-  received:   'Выдали',
-  cancelled:  'Отменён',
-  rejected:   'Отклонён',
-}
-
-const statusOrder: OrderStatus[] = [
-  'new', 'review', 'confirmed', 'assembling', 'ready', 'shipped', 'received', 'cancelled', 'rejected',
-]
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient()
@@ -123,10 +108,10 @@ export default async function AdminDashboardPage() {
       .filter(v => v.availableQty <= 4)
   )
 
-  const statusCounters = statusOrder.map(status => ({
+  const statusCounters = activeWorkStatuses.filter(status=>status!=='shipped'||orders.some(o=>o.is_remote)).map(status => ({
     status,
-    label: statusLabels[status],
-    count: orders.filter(o => o.status === status).length,
+    label: workStatusLabels[status],
+    count: orders.filter(o => workStatus(o) === status).length,
   }))
 
   const recentOrders   = orders.slice(0, 6)
@@ -185,8 +170,8 @@ export default async function AdminDashboardPage() {
                 </div>
                 <div className="dash-recent-right">
                   <small>{formatRelativeDate(order.created_at)}</small>
-                  <span className={getStatusBadgeClass(order.status)}>
-                    {statusLabels[order.status]}
+                  <span className={getStatusBadgeClass(workStatus(order))}>
+                    {workStatusLabel(order)}
                   </span>
                 </div>
               </div>
@@ -230,7 +215,7 @@ export default async function AdminDashboardPage() {
                 <div>
                   <b>Создан заказ #{order.order_number}</b>
                   <span>
-                    {order.full_name || order.email || 'Сотрудник'} · {statusLabels[order.status]}
+                    {order.full_name || order.email || 'Сотрудник'} · {workStatusLabel(order)}
                   </span>
                 </div>
                 <small>{formatRelativeDate(order.created_at)}</small>
@@ -272,17 +257,17 @@ function KpiCard({
 /*  Helpers                                                                     */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function getStatusDotClass(status: OrderStatus) {
-  if (status === 'new'       || status === 'review')     return 'dash-status-dot-amber'
-  if (status === 'confirmed' || status === 'assembling') return 'dash-status-dot-blue'
-  if (status === 'shipped'   || status === 'received')   return 'dash-status-dot-green'
+function getStatusDotClass(status: WorkStatus) {
+  if (status === 'new')     return 'dash-status-dot-amber'
+  if (status === 'assembling') return 'dash-status-dot-blue'
+  if (status === 'ready' || status === 'shipped' || status === 'received')   return 'dash-status-dot-green'
   return 'dash-status-dot-red'
 }
 
-function getStatusBadgeClass(status: OrderStatus) {
-  if (status === 'shipped'   || status === 'received')   return 'dash-badge dash-badge-green'
-  if (status === 'confirmed' || status === 'assembling') return 'dash-badge dash-badge-blue'
-  if (status === 'cancelled' || status === 'rejected')   return 'dash-badge dash-badge-red'
+function getStatusBadgeClass(status: WorkStatus) {
+  if (status === 'ready' || status === 'shipped' || status === 'received')   return 'dash-badge dash-badge-green'
+  if (status === 'assembling') return 'dash-badge dash-badge-blue'
+  if (status === 'closed') return 'dash-badge dash-badge-red'
   return 'dash-badge dash-badge-amber'
 }
 

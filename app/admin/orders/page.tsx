@@ -142,7 +142,7 @@ export default async function AdminOrdersPage() {
 
   const [{ data: variantRows }, { data: admins }, { data: events }, {data:tasks}] = await Promise.all([
     supabase.from('product_variants').select('id,product_id,size,color,sku,total_qty,reserved_qty,is_active,products(name,is_active,placement)'),
-    supabase.from('employees').select('id,full_name').eq('is_admin', true).eq('is_active', true),
+    supabase.from('employees').select('id,full_name,email,phone').eq('is_admin', true).eq('is_active', true),
     supabase.from('order_events').select('id,order_id,action,data,created_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('order_tasks').select('id,order_id,due_on,reserve_until,contacted_at').is('closed_at',null),
   ])

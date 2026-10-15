@@ -53,7 +53,7 @@ export default function IssueClient() {
   function submit(event: FormEvent) { event.preventDefault(); void issue(code) }
   return <section className="issue-panel">
     <h2>Сканировать и выдать заказ целиком</h2>
-    <p>После сканирования готовый офисный заказ сразу отмечается «Выдали». Повторный скан покажет дату и администратора первой выдачи.</p>
+    <p>После сканирования заказ со статусом «Можно забирать» сразу отмечается «Получен». Повторный скан покажет дату и администратора первой выдачи.</p>
     <form onSubmit={submit} className="issue-form">
       <label>Код получения — 20 цифр
         <input ref={input} autoFocus inputMode="numeric" type="text" autoComplete="off" value={code} onChange={e => setCode(e.target.value)} disabled={busy} className="ao-input" />

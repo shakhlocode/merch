@@ -1,3 +1,5 @@
+import OrderContact from '@/components/OrderContact'
+import {workStatus,workStatusLabel,workStatusLabels,workflowSteps,type WorkStatus,type OrderContactData} from '@/lib/order-workflow'
 import {defaultStoreContent,orderMessage} from '@/lib/store-content'
 import { displayColor, displaySize } from '@/lib/variant-labels'
 import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
@@ -61,18 +63,6 @@ type Order = {
 /*  Constants                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-const statusLabels: Record<OrderStatus, string> = {
-  new:        'Новый',
-  review:     'На проверке',
-  confirmed:  'Подтверждён',
-  assembling: 'Собирается',
-  ready: 'Готов к выдаче',
-  shipped:    'Отправлен',
-  received:   'Выдали',
-  cancelled:  'Отменён',
-  rejected:   'Отклонён',
-}
-
 const statusPillClass: Record<OrderStatus, string> = {
   new:        'pill pill-amber',
   review:     'pill pill-amber',
@@ -85,10 +75,6 @@ const statusPillClass: Record<OrderStatus, string> = {
   rejected:   'pill pill-red',
 }
 
-
-const flowStatuses: OrderStatus[] = [
-  'new', 'review', 'confirmed', 'assembling', 'ready', 'shipped', 'received',
-]
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  Page                                                                        */
@@ -121,11 +107,10 @@ export default async function OrdersPage() {
     .eq('employee_id', user.id)
     .order('created_at', { ascending: false })
 
-  const { data: settings } = await supabase
-    .from('merch_settings')
-    .select('*')
-    .eq('id', 1)
-    .maybeSingle()
+  const [{data:settings},{data:contacts}] = await Promise.all([
+    supabase.from('merch_settings').select('*').eq('id',1).maybeSingle(),
+    supabase.rpc('order_responsible_contacts',{p_order_ids:(rawOrders||[]).slice(0,2000).map(o=>o.id)}),
+  ])
 
   const isAdmin = Boolean(employee?.is_admin)
 
@@ -193,7 +178,7 @@ export default async function OrdersPage() {
         ) : (
           <div className="orders-list">
             {orders.map(order => (
-              <OrderCard key={order.id} order={order} message={orderMessage(settings||defaultStoreContent,order.order_scope,order.fulfillment_mode,order.is_remote)||DEFAULT_PICKUP_MESSAGE} />
+              <OrderCard key={order.id} order={order} contact={contacts?.find(c=>c.order_id===order.id)} message={orderMessage(settings||defaultStoreContent,order.order_scope,order.fulfillment_mode,order.is_remote)||DEFAULT_PICKUP_MESSAGE} />
             ))}
           </div>
         )}
@@ -247,12 +232,14 @@ function StatCard({ label, value }: { label: string; value: number }) {
 /*  OrderCard                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function OrderCard({ order,message }: { order: Order; message:string }) {
+function OrderCard({ order,message,contact }: { order: Order; message:string;contact?:OrderContactData|null }) {
   const items    = order.order_items ?? []
   const totalQty = items.reduce((s, i) => s + Number(i.qty), 0)
 
   const isRejected = order.status === 'cancelled' || order.status === 'rejected'
   const isReceived = order.status === 'received'
+  const flowStatuses=workflowSteps(order.is_remote)
+  const stage=workStatus(order)
 
   return (
     <article className="order">
@@ -266,8 +253,8 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
             <span className="order-track">Трек: {order.tracking_number}</span>
           )}
         </div>
-        <span className={statusPillClass[order.status]}>
-          {statusLabels[order.status]}
+        <span className={statusPillClass[(stage==='closed'?'cancelled':stage) as OrderStatus]}>
+          {workStatusLabel(order)}
         </span>
       </div>
 
@@ -310,7 +297,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
         ) : (
           flowStatuses.map(step => {
             const stepIdx    = flowStatuses.indexOf(step)
-            const currentIdx = Math.max(0, flowStatuses.indexOf(order.status))
+            const currentIdx = Math.max(0, flowStatuses.indexOf(stage as OrderStatus))
             const isDone     = stepIdx < currentIdx
             const isCurrent  = stepIdx === currentIdx
 
@@ -320,7 +307,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
                 className={`timeline-step${isDone ? ' done' : ''}${isCurrent ? ' current' : ''}`}
               >
                 <span className={`timeline-dot${isDone ? ' done' : ''}${isCurrent ? ' current' : ''}`} />
-                <span className="timeline-lbl">{getFlowLabel(step)}</span>
+                <span className="timeline-lbl">{workStatusLabels[step as WorkStatus]}</span>
               </div>
             )
           })
@@ -346,11 +333,12 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
       )}
 
       {order.is_remote && !isRejected && <div className="order-pickup">
-        <p className="pickup-message">{message}</p>{order.remote_contact_name&&<p>Ответственный: {order.remote_contact_name}.</p>}
+        <p className="pickup-message">{message}</p>
       </div>}
       {order.fulfillment_mode==='remote_visit'&&<p>Ваш визит в Ташкент: с {order.visit_from} по {order.visit_until}.{!isRejected&&!isReceived?' Мерч зарезервирован, администратор свяжется с вами.':''}</p>}
       {!isRejected&&!order.is_remote&&!isReceived&&<p className="pickup-message">{message}</p>}
       {isReceived && <p>Выдали: {order.received_at ? formatDateTime(order.received_at) : 'Дата не указана'} · {order.received_by_name || 'Администратор не указан'}</p>}
+      {!isRejected&&<OrderContact contact={contact}/>}
       {/* ── Pickup barcode ── */}
       {!isRejected && !order.is_remote && order.pickup_code && (
         <div className="order-pickup">
@@ -360,7 +348,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
             <span>
               {isReceived
                 ? 'Заказ уже выдали.'
-                : 'Покажите штрихкод при получении. Выдача доступна после статуса «Готов к выдаче».'}
+                : 'Покажите штрихкод при получении. Выдача доступна после статуса «Можно забирать».'}
             </span>
           </div>
         </div>
@@ -420,17 +408,4 @@ function formatDateTime(value: string) {
     hour:     '2-digit',
     minute:   '2-digit',
   })
-}
-
-function getFlowLabel(status: OrderStatus) {
-  const map: Partial<Record<OrderStatus, string>> = {
-    new:        'Заявка',
-    review:     'Проверка',
-    confirmed:  'Подтверждение',
-    assembling: 'Сборка',
-    ready: 'Готов к выдаче',
-    shipped:    'Отправка',
-    received:   'Получение',
-  }
-  return map[status] ?? statusLabels[status]
 }
