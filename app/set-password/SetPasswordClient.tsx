@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -32,7 +34,7 @@ export default function SetPasswordClient({ email, mode }: SetPasswordClientProp
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/password', {
+      const response = await unitFetch('/api/auth/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -44,7 +46,7 @@ export default function SetPasswordClient({ email, mode }: SetPasswordClientProp
         return
       }
 
-      router.replace('/catalog')
+      window.location.replace('/catalog')
       router.refresh()
     } catch (saveError) {
       setError(

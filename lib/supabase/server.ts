@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './types'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 type CookieToSet = {
   name: string
@@ -17,11 +17,13 @@ type CookieToSet = {
 // which correctly computes Schema = Database['public'].
 export async function createClient(): Promise<SupabaseClient<Database>> {
   const cookieStore = await cookies()
+  const unit = (await headers()).get('x-merch-unit')
 
   const client = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { headers: unit ? { 'x-merch-unit': unit } : {} },
       cookies: {
         getAll() {
           return cookieStore.getAll()

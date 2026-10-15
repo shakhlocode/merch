@@ -1,4 +1,6 @@
 'use client'
+
+import { withUnit, unitFetch } from '@/lib/shop-context'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 export default function SystemAccessMonitor() {
@@ -18,11 +20,11 @@ export default function SystemAccessMonitor() {
       if (stopped || busy || document.visibilityState === 'hidden') return
       busy = true
       try {
-        const response = await fetch('/api/access', { cache: 'no-store' })
+        const response = await unitFetch('/api/access', { cache: 'no-store' })
         if (response.ok || response.status === 401) {
           const result = await response.json()
           if (!stopped && !result.allowed) {
-            router.replace('/access-closed')
+            router.replace(withUnit('/access-closed'))
             router.refresh()
           } else if (
             !stopped &&
@@ -31,7 +33,7 @@ export default function SystemAccessMonitor() {
             ((pathname === '/catalog' && result.scope === 'welcome') ||
               (pathname === '/welcome' && result.scope === 'catalog'))
           ) {
-            router.replace(result.scope === 'welcome' ? '/welcome' : '/catalog')
+            router.replace(withUnit(result.scope === 'welcome' ? '/welcome' : '/catalog'))
             router.refresh()
           }
         }

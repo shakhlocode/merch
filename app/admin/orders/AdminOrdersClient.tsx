@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import OrderContact from '@/components/OrderContact'
 import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,workflowSteps,type WorkStatus} from '@/lib/order-workflow'
 import {fulfillmentLabel} from '@/lib/fulfillment'
@@ -11,7 +13,7 @@ import OrderBarcode from '@/components/OrderBarcode'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import JsBarcode from 'jsbarcode'
-import Link from 'next/link'
+import Link from '@/components/ShopLink'
 import OrderItemsEditor, { type EditableVariant } from '@/components/OrderItemsEditor'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
 import { getExportDate, getProductLetter, toCsv } from '@/lib/utils'
@@ -472,7 +474,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
     setSuccess(null)
 
     try {
-      const response = await fetch(`/api/admin/orders/${order.id}`, {
+      const response = await unitFetch(`/api/admin/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

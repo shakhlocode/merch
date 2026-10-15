@@ -6,6 +6,7 @@ grant execute on function pg_temp.assert(boolean,text) to authenticated;
 insert into public.employee_directory(email,full_name) values('i-admin@example.test','Import admin');
 insert into auth.users(id,email) values('00000000-0000-0000-0000-000000000031','i-admin@example.test');
 update public.employees set is_admin=true where email='i-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000031',true);
 select pg_temp.assert((public.admin_import_employees('[{"email":" New-1@example.test ","full_name":"New One","external_id":"001"},{"email":"new-2@example.test","full_name":"New Two"}]')->>'added')::int=2,'bulk import adds employees without hire date');

@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -39,7 +41,7 @@ export default function DeadlineEditor({
     setError(null)
 
     try {
-      const response = await fetch('/api/admin/settings', {
+      const response = await unitFetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

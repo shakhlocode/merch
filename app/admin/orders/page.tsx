@@ -1,12 +1,14 @@
 import type {StockRow} from '@/lib/analytics'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import Link from '@/components/ShopLink'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import AdminOrdersClient, { type AdminOrder } from './AdminOrdersClient'
 import type { EditableVariant } from '@/components/OrderItemsEditor'
 
 export default async function AdminOrdersPage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const {
@@ -39,7 +41,7 @@ export default async function AdminOrdersPage() {
     )
   }
 
-  if (!employee?.is_admin || !employee.is_active) {
+  if (!(await supabase.rpc('is_admin', {})).data || !employee || !employee.is_active) {
     return (
       <main className="page-error">
         <section className="error-card">
@@ -121,7 +123,7 @@ export default async function AdminOrdersPage() {
 
   const [{ data: variantRows }, { data: admins }, { data: events }, {data:tasks}] = await Promise.all([
     supabase.from('product_variants').select('id,product_id,size,color,sku,total_qty,reserved_qty,is_active,products(name,is_active,placement)'),
-    supabase.from('employees').select('id,full_name,email,phone').eq('is_admin', true).eq('is_active', true),
+    supabase.rpc('admin_shop_contacts',{}),
     supabase.from('order_events').select('id,order_id,action,data,created_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('order_tasks').select('id,order_id,due_on,reserve_until,contacted_at').is('closed_at',null),
   ])

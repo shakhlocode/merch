@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!employee?.is_admin || !employee.is_active) {
+    if (!(await supabase.rpc('is_admin', {})).data || !employee || !employee.is_active) {
       return NextResponse.json(
         { error: 'Доступ разрешён только администратору' },
         { status: 403 }

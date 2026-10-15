@@ -1,6 +1,6 @@
 import { defaultStoreContent, type StoreScope } from '@/lib/store-content'
 import { requireSystemAccess } from '@/lib/system-access'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import CatalogClient, {
@@ -30,6 +30,8 @@ type CatalogQueryProduct = {
 }
 
 export default async function ShopPage({ scope }: { scope: StoreScope }) {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const {
@@ -180,7 +182,7 @@ export default async function ShopPage({ scope }: { scope: StoreScope }) {
       }}
       userEmail={user.email ?? null}
       userName={employee?.full_name ?? null}
-      isAdmin={Boolean(employee?.is_admin)}
+      isAdmin={Boolean((await supabase.rpc('is_admin', {})).data)}
       checkoutDefaults={{
         deliveryType: 'office',
         deliveryAddress: defaultDeliveryAddress,

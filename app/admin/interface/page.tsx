@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 import AdminShell from '@/components/AdminShell'
 import InterfaceSettings from './InterfaceSettings'
 import { defaultStoreContent, type StoreContent } from '@/lib/store-content'
 export default async function Page() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const s = await createClient(),
     a = await requireAdmin(s)
   if (!a.ok) redirect('/login')

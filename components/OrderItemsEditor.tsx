@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -16,7 +18,7 @@ export default function OrderItemsEditor({ orderId, version, initialIds, variant
   async function save() {
     setBusy(true); setMessage(null)
     try {
-      const r = await fetch(`/api/admin/orders/${orderId}/items`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, items: ids.map(id => ({ variant_id: id, qty: 1 })) }) })
+      const r = await unitFetch(`/api/admin/orders/${orderId}/items`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, items: ids.map(id => ({ variant_id: id, qty: 1 })) }) })
       const data = await r.json()
       if (!r.ok) throw new Error(data.error)
       setMessage('Состав сохранён, резерв пересчитан. Проверьте сборку и снова отметьте готовность.')

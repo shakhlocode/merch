@@ -12,6 +12,7 @@ insert into auth.users(id,email) values
  ('00000000-0000-0000-0000-000000000093','contact-user-a@example.test'),
  ('00000000-0000-0000-0000-000000000094','contact-user-b@example.test');
 update public.employees set is_admin=true,phone='+998901234567' where email like 'contact-admin-%';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(id,name) values ('10000000-0000-0000-0000-000000000091','Contact test product');
 insert into public.product_variants(id,product_id,sku) values ('20000000-0000-0000-0000-000000000091','10000000-0000-0000-0000-000000000091','CONTACT-TEST');
 insert into public.stock_movements(variant_id,movement_type,qty) values ('20000000-0000-0000-0000-000000000091','income',5);

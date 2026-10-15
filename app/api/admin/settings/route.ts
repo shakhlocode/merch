@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: employeeError.message }, { status: 400 })
     }
 
-    if (!employee?.is_admin || employee.is_active === false) {
+    if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
       return NextResponse.json(
         { error: 'Доступ разрешён только администратору' },
         { status: 403 }

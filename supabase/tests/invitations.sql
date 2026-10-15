@@ -13,6 +13,7 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('00000000-0000-0000-0000-000000000053','inv-email@example.test',now()),
  ('00000000-0000-0000-0000-000000000054','i-40000000-0000-0000-0000-000000000052@guest.merch.invalid',now());
 update public.employees set is_admin=true where email='inv-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000051',true);
 select public.admin_create_invitation('40000000-0000-0000-0000-000000000051','30000000-0000-0000-0000-000000000052',repeat('a',64),repeat('b',64),'code');

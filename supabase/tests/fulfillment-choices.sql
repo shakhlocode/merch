@@ -5,6 +5,7 @@ grant execute on function pg_temp.assert(boolean,text) to authenticated;
 insert into public.employee_directory(email,full_name) values('choices-admin@example.test','Choices admin'),('choices-person@example.test','Choices recipient');
 insert into auth.users(id,email) values('00000000-0000-0000-0000-000000000095','choices-admin@example.test'),('00000000-0000-0000-0000-000000000096','choices-person@example.test');
 update public.employees set is_admin=true where email='choices-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(id,name) values('10000000-0000-0000-0000-000000000096','Choice item');
 insert into public.product_variants(id,product_id,sku) values('20000000-0000-0000-0000-000000000096','10000000-0000-0000-0000-000000000096','CHOICE-ITEM');
 insert into public.stock_movements(variant_id,movement_type,qty) values('20000000-0000-0000-0000-000000000096','income',10);

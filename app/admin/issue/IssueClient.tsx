@@ -1,7 +1,9 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import Link from 'next/link'
+import Link from '@/components/ShopLink'
 import { useRouter } from 'next/navigation'
 import type { IScannerControls } from '@zxing/browser'
 
@@ -44,7 +46,7 @@ export default function IssueClient() {
     busyRef.current = true
     setBusy(true); setCamera(false); setError(null); setReceipt(null)
     try {
-      const response = await fetch('/api/admin/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: value.trim() }) })
+      const response = await unitFetch('/api/admin/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: value.trim() }) })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Не удалось подтвердить выдачу')
       setReceipt(result.receipt)

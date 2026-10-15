@@ -1,4 +1,6 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
 import { useState } from 'react'
 export default function InvitationQueue() {
   const [open, setOpen] = useState(false),
@@ -15,7 +17,7 @@ export default function InvitationQueue() {
       }[]
     >([])
   async function refresh() {
-    const r = await fetch('/api/admin/invitations', { cache: 'no-store' }),
+    const r = await unitFetch('/api/admin/invitations', { cache: 'no-store' }),
       d = await r.json()
     if (!r.ok) throw new Error(d.error)
     setRows(d.invitations)
@@ -57,7 +59,7 @@ export default function InvitationQueue() {
                   failed = 0
                 try {
                   for (let i = 0; i < 400; i++) {
-                    const r = await fetch('/api/admin/invitations', {
+                    const r = await unitFetch('/api/admin/invitations', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'deliver' }),
@@ -88,7 +90,7 @@ export default function InvitationQueue() {
               onClick={async () => {
                 setBusy(true)
                 try {
-                  const r = await fetch('/api/admin/invitations', {
+                  const r = await unitFetch('/api/admin/invitations', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'retry_failed' }),

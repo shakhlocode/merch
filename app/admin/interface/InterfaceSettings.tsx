@@ -1,4 +1,6 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { PickupOffice, FulfillmentChoice } from '@/lib/fulfillment'
@@ -21,7 +23,7 @@ export default function InterfaceSettings({
     setBusy(true)
     setNote('')
     try {
-      const r = await fetch('/api/admin/fulfillment', {
+      const r = await unitFetch('/api/admin/fulfillment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),

@@ -1,4 +1,8 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -26,7 +30,7 @@ function AcceptContent() {
           const { error } = await client.auth.initialize()
           if (error) throw error
         }
-        const r = await fetch('/api/invitations/accept', {
+        const r = await unitFetch('/api/invitations/accept', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: params.get('id') }),
@@ -42,7 +46,7 @@ function AcceptContent() {
           .select('password_set_at')
           .eq('id', user!.id)
           .maybeSingle()
-        router.replace(employee?.password_set_at ? (d.next==='/welcome'?'/welcome':'/catalog') : '/set-password')
+        window.location.replace(employee?.password_set_at ? (typeof d.next==='string' && /^\/(welcome|catalog)(\?|$)/.test(d.next) ? d.next : '/catalog') : '/set-password')
         router.refresh()
       } catch (e) {
         setError(
@@ -62,7 +66,7 @@ function AcceptContent() {
         </h1>
         {error && <p role="alert">{error}</p>}
         <p>
-          <a href="/login">Войти в существующий аккаунт</a>
+          <ShopAnchor href="/login">Войти в существующий аккаунт</ShopAnchor>
         </p>
       </section>
     </main>

@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function proxy() {
-  return NextResponse.next()
+export async function proxy(request: NextRequest) {
+  const headers = new Headers(request.headers)
+  const unit = request.nextUrl.searchParams.get('unit') || headers.get('x-merch-unit')
+  if (unit) headers.set('x-merch-unit', unit)
+  return NextResponse.next({ request: { headers } })
 }
 
 export const config = {

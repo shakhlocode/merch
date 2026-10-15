@@ -1,4 +1,8 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
 import InvitationChoice, { type InvitationChoiceValue } from '@/components/InvitationChoice'
 import InvitationResults from '@/components/InvitationResults'
 import type { InvitationResult } from '@/lib/invitations'
@@ -24,7 +28,7 @@ export default function EmployeeImport() {
   return <section className="ae-editor ae-editor-create">
     <h2 className="ae-editor-title">Загрузка сотрудников из таблицы</h2>
     <p>Первый лист Excel (.xlsx) или CSV, до 5 МБ и 2000 сотрудников. Колонки: Email, ФИО, Идентификатор (необязательно). Можно добавить необязательную колонку «Юрлицо». Идентификаторы с ведущими нулями храните как текст.</p>
-    <a href="/templates/employees.csv" download className="login-text-button">Скачать шаблон CSV для Excel</a>
+    <ShopAnchor href="/templates/employees.csv" download className="login-text-button">Скачать шаблон CSV для Excel</ShopAnchor>
     <p>Существующие email будут пропущены. Для личных ссылок без почты также пропускаются существующие идентификаторы. С приглашением доступ откроется после его активации.</p>
     <p>Тип доступа ниже будет назначен всем новым сотрудникам из файла.</p>
     <InvitationChoice scope={inviteScope} onScope={setInviteScope} value={invitation} onChange={value => { setInvitation(value); setRows([]); setErrors([]) }} />
@@ -49,7 +53,7 @@ export default function EmployeeImport() {
     <button type="button" className="ae-save-btn" disabled={busy || !rows.length || !!errors.length} onClick={async () => {
       setBusy(true); setMessage(''); setSubmitError('')
       try {
-        const response = await fetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows, access_mode: mode, access_until: until, invitation, invite_scope: invitation==='none'?'catalog':inviteScope }) })
+        const response = await unitFetch('/api/admin/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'import_employees', rows, access_mode: mode, access_until: until, invitation, invite_scope: invitation==='none'?'catalog':inviteScope }) })
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Не удалось загрузить сотрудников')
         if (invitation !== 'none' && result.employee_ids?.length) setInviteResults(await buildInvitationBatches(result.employee_ids, invitation,inviteScope))

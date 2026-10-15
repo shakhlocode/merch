@@ -1,7 +1,10 @@
 'use client'
 
-import Link from 'next/link'
+import { withUnit, unitFetch } from '@/lib/shop-context'
+
+import Link from '@/components/ShopLink'
 import AdminTaskNotice from '@/components/AdminTaskNotice'
+import ShopSwitcher from '@/components/ShopSwitcher'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 
@@ -53,7 +56,7 @@ export default function AdminShell({
   async function handleLogout() {
     setIsLoggingOut(true)
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await unitFetch('/api/auth/logout', { method: 'POST' })
     } finally {
       window.location.href = '/login'
     }
@@ -66,9 +69,9 @@ export default function AdminShell({
     if (query) { params.set('q', query) } else { params.delete('q') }
     const suffix = params.toString() ? `?${params.toString()}` : ''
 
-    if (pathname === '/admin/orders')   { router.push(`/admin/orders${suffix}`);   return }
-    if (pathname === '/admin/products') { router.push(`/admin/products${suffix}`); return }
-    router.push(query ? `/admin/orders?q=${encodeURIComponent(query)}` : '/admin/orders')
+    if (pathname === '/admin/orders')   { router.push(withUnit(`/admin/orders${suffix}`));   return }
+    if (pathname === '/admin/products') { router.push(withUnit(`/admin/products${suffix}`)); return }
+    router.push(withUnit(query ? `/admin/orders?q=${encodeURIComponent(query)}` : '/admin/orders'))
   }
 
   return (
@@ -84,6 +87,7 @@ export default function AdminShell({
           <span className="admin-badge">ADMIN</span>
         </Link>
 
+        <ShopSwitcher />
         <nav className="admin-nav">
           {navItems.map((item, index) => {
             const active =

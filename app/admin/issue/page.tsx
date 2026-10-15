@@ -1,10 +1,12 @@
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin'
 import AdminShell from '@/components/AdminShell'
 import IssueClient from './IssueClient'
 
 export default async function IssuePage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
   const access = await requireAdmin(supabase)
   if (!access.ok) {

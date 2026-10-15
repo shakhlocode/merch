@@ -1,3 +1,5 @@
+
+import { unitFetch } from '@/lib/shop-context'
 import type { StoreScope } from '@/lib/store-content'
 import type { InvitationResult } from '@/lib/invitations'
 export async function buildInvitationBatches(
@@ -8,7 +10,7 @@ export async function buildInvitationBatches(
   const results: InvitationResult[] = []
   for (let i = 0; i < ids.length; i += 20) {
     try {
-      const response = await fetch('/api/admin/invitations', {
+      const response = await unitFetch('/api/admin/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

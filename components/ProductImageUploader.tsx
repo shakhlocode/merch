@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { useState, type ChangeEvent } from 'react'
 
 type ProductImageUploaderProps = {
@@ -30,7 +32,7 @@ export default function ProductImageUploader({
       formData.append('file', file)
       if (productId) formData.append('productId', productId)
 
-      const response = await fetch('/api/admin/product-image', {
+      const response = await unitFetch('/api/admin/product-image', {
         method: 'POST',
         body: formData,
       })

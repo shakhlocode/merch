@@ -1,4 +1,8 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
 import { useEffect, useState } from 'react'
 export default function AdminTaskNotice() {
   const [counts, setCounts] = useState({ due: 0, overdue: 0 })
@@ -7,7 +11,7 @@ export default function AdminTaskNotice() {
     async function check() {
       if (document.visibilityState === 'hidden') return
       try {
-        const r = await fetch('/api/admin/tasks', { cache: 'no-store' })
+        const r = await unitFetch('/api/admin/tasks', { cache: 'no-store' })
         if (r.ok && !stopped) setCounts(await r.json())
       } catch {}
     }
@@ -21,7 +25,7 @@ export default function AdminTaskNotice() {
     }
   }, [])
   return counts.due || counts.overdue ? (
-    <a href="/admin/orders?work=arrivals" className="admin-task-notice" role="status">
+    <ShopAnchor href="/admin/orders?work=arrivals" className="admin-task-notice" role="status">
       {counts.due > 0 && (
         <span>Свяжитесь с приезжающими сотрудниками: {counts.due}. </span>
       )}
@@ -31,6 +35,6 @@ export default function AdminTaskNotice() {
         </span>
       )}
       Открыть заказы →
-    </a>
+    </ShopAnchor>
   ) : null
 }

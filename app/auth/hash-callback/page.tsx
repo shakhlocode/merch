@@ -82,15 +82,15 @@ function HashCallbackContent() {
           .maybeSingle()
 
         if (!employee?.password_set_at) {
-          router.replace('/set-password')
+          window.location.replace('/set-password')
           return
         }
 
-        router.replace(next)
+        window.location.replace(next)
       } catch (error) {
         const description =
           error instanceof Error ? error.message : 'Не удалось выполнить вход'
-        router.replace(
+        window.location.replace(
           `/login?error=auth_failed&description=${encodeURIComponent(description)}`
         )
       }

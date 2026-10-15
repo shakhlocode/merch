@@ -1,5 +1,7 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
 import { hasStockAlert, stockThreshold } from '@/lib/stock-alerts'
 import AdminShell from '@/components/AdminShell'
 import ProductImage from '@/components/ProductImage'
@@ -317,7 +319,7 @@ function CreateProductCard({ onClose }: { onClose: () => void }) {
     setError(null)
 
     try {
-      const response = await fetch('/api/admin/products', {
+      const response = await unitFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -410,7 +412,7 @@ function ProductArchiveButton({ product }: { product: AdminProduct }) {
     <button type="button" className="ap-light-btn" disabled={busy} onClick={async event => {
       event.stopPropagation(); setBusy(true); setError(null)
       try {
-        const response = await fetch('/api/admin/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'archive_product', product_id: product.id, is_active: !product.is_active }) })
+        const response = await unitFetch('/api/admin/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'archive_product', product_id: product.id, is_active: !product.is_active }) })
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Не удалось изменить архив')
         router.refresh()
@@ -663,7 +665,7 @@ function ProductMainEditor({ product }: { product: AdminProduct }) {
     setIsSaving(true); setMessage(null); setError(null)
 
     try {
-      const response = await fetch('/api/admin/products', {
+      const response = await unitFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -750,7 +752,7 @@ function VariantsEditor({ product }: { product: AdminProduct }) {
     setIsCreating(true); setError(null)
 
     try {
-      const response = await fetch('/api/admin/products', {
+      const response = await unitFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -839,7 +841,7 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
     setIsSaving(true); setMessage(null); setError(null)
 
     try {
-      const response = await fetch('/api/admin/products', {
+      const response = await unitFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_variant', variant_id: variant.id, size, color, sku, is_active: isActive, low_stock_threshold: Number(threshold) }),
@@ -859,7 +861,7 @@ function VariantRow({ variant }: { variant: AdminVariant }) {
     setIsSaving(true); setMessage(null); setError(null)
 
     try {
-      const response = await fetch('/api/admin/products', {
+      const response = await unitFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add_stock', variant_id: variant.id, movement_type: movementType, qty: Number(qty), comment }),

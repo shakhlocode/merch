@@ -1,5 +1,9 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
+
 import OrderContact from '@/components/OrderContact'
 import type { OrderContactData } from '@/lib/order-workflow'
 
@@ -194,7 +198,7 @@ export default function CatalogClient({
     setCheckoutSuccess(null)
 
     try {
-      const res = await fetch('/api/orders', {
+      const res = await unitFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -241,7 +245,7 @@ export default function CatalogClient({
         <div className="site-head-glass" aria-hidden="true" />
         <div className="head-inner">
 
-          <a href={scope==='welcome'?'/welcome':'/catalog'} className="brand">
+          <ShopAnchor href={scope==='welcome'?'/welcome':'/catalog'} className="brand">
             <span className="brand-mark">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/uzum-big-logo.webp" alt="Uzum" />
@@ -249,7 +253,7 @@ export default function CatalogClient({
             <span className="brand-name">
               uzum <span className="brand-name-soft">мерч</span>
             </span>
-          </a>
+          </ShopAnchor>
 
           <AppNav storeScope={scope} isAdmin={isAdmin} />
 
@@ -268,12 +272,12 @@ export default function CatalogClient({
               </button>
             )}
 
-            <a href="/profile" className="head-user">
+            <ShopAnchor href="/profile" className="head-user">
               <span className="head-user-avatar">{initials}</span>
               <span className="head-user-info">
                 <span className="head-user-name">{firstName}</span>
               </span>
-            </a>
+            </ShopAnchor>
 
             <LogoutButton />
           </div>
@@ -520,7 +524,7 @@ function CartAside({responsible,choices,officeOnly,cart,totalQty,pickup,offices,
       ) : (
         <>
           <div className="cart-form">
-            <a href="#catalog-grid" className="login-text-button">← Продолжить выбор товаров</a>
+            <ShopAnchor href="#catalog-grid" className="login-text-button">← Продолжить выбор товаров</ShopAnchor>
 
             <FulfillmentForm choices={choices} officeOnly={officeOnly} value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
 
@@ -580,8 +584,8 @@ function CheckoutSuccessCard({ message,code,contact,orderNumber }: { message: st
         <OrderContact contact={contact}/>
         {code && <OrderBarcode value={code} size={260} orderNumber={orderNumber} downloadable/>}
         <div className="confirm-actions">
-          <a href="/orders" className="confirm-primary-link">Перейти в мои заказы</a>
-          <a href="#catalog-grid" className="confirm-ghost-link">Продолжить выбор</a>
+          <ShopAnchor href="/orders" className="confirm-primary-link">Перейти в мои заказы</ShopAnchor>
+          <ShopAnchor href="#catalog-grid" className="confirm-ghost-link">Продолжить выбор</ShopAnchor>
         </div>
       </div>
     </div>
@@ -598,7 +602,7 @@ function LogoutButton() {
   async function handleLogout() {
     setLoggingOut(true)
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await unitFetch('/api/auth/logout', { method: 'POST' })
     } finally {
       window.location.href = '/login'
     }

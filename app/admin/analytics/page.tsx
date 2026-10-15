@@ -1,5 +1,7 @@
-import Link from 'next/link'
-import {redirect} from 'next/navigation'
+
+import ShopAnchor from '@/components/ShopAnchor'
+import Link from '@/components/ShopLink'
+import { shopRedirect } from '@/lib/shop-redirect'
 import AdminShell from '@/components/AdminShell'
 import {createClient} from '@/lib/supabase/server'
 import {requireAdmin} from '@/lib/admin'
@@ -7,6 +9,8 @@ import {reportFilters,formatReportTime,scopeName,modeName,type HandoutReport,typ
 import {displayColor,displaySize} from '@/lib/variant-labels'
 
 export default async function AnalyticsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase=await createClient(),access=await requireAdmin(supabase)
   if(!access.ok){if(access.status===401)redirect('/login');return <main className="page-error">Аналитика доступна только активным администраторам.</main>}
   const params=new URLSearchParams()
@@ -20,10 +24,12 @@ export default async function AnalyticsPage({searchParams}:{searchParams:Promise
   if(issued.error||currentStock.error)return <AdminShell adminEmail={access.employee.email} title="Аналитика"><p role="alert">Не удалось загрузить отчёты. Обновите страницу.</p></AdminShell>
   const report=issued.data as HandoutReport,stock=currentStock.data as StockRow[],alerts=stock.filter(s=>s.alert)
   const query=new URLSearchParams(filters)
-  const csv=(name:ReportName)=><a className="ao-light-btn" href={'/api/admin/analytics?'+new URLSearchParams({...Object.fromEntries(query),report:name})}>Экспорт CSV</a>
+  const {data:unitId}=await supabase.rpc('current_unit_id',{})
+  const csv=(name:ReportName)=><ShopAnchor className="ao-light-btn" href={'/api/admin/analytics?'+new URLSearchParams({...Object.fromEntries(query),report:name})}>Экспорт CSV</ShopAnchor>
   return <AdminShell adminEmail={access.employee.email} title="Аналитика" stockAlertCount={alerts.length}>
     <section className="analytics-page">
       <form method="get" action="/admin/analytics" className="analytics-filters">
+        <input type="hidden" name="unit" value={unitId||''}/>
         <label>С даты<input name="from" type="date" defaultValue={filters.from} required className="ap-input"/></label>
         <label>По дату включительно<input name="until" type="date" defaultValue={filters.until} required className="ap-input"/></label>
         <label>Раздел выдачи<select name="scope" defaultValue={filters.scope} className="ap-input"><option value="all">Все разделы</option><option value="catalog">Каталог</option><option value="welcome">Welcome pack</option></select></label>

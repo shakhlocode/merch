@@ -8,6 +8,7 @@ insert into auth.users(id,email) values
  ('00000000-0000-0000-0000-000000000021','p-admin@example.test'),
  ('00000000-0000-0000-0000-000000000022','p-user@example.test');
 update public.employees set is_admin=true where email='p-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(name) values('Legacy placement');
 select pg_temp.assert((select placement='catalog' from public.products where name='Legacy placement'),'existing products default to main catalog');
 set local role authenticated;

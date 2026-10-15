@@ -1,6 +1,8 @@
 'use client'
 
-import Link from 'next/link'
+import { unitFetch } from '@/lib/shop-context'
+
+import Link from '@/components/ShopLink'
 import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import InvitationResults from '@/components/InvitationResults'
@@ -47,7 +49,7 @@ export default function WelcomeInvitations({
     setBusy(true)
     setError('')
     try {
-      const response = await fetch(
+      const response = await unitFetch(
         mode === 'new' ? '/api/admin/employees' : '/api/admin/invitations',
         {
           method: 'POST',

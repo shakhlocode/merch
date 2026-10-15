@@ -10,6 +10,7 @@ insert into auth.users(id,email) values
  ('00000000-0000-0000-0000-000000000003','new@example.test'),
  ('00000000-0000-0000-0000-000000000004','outsider@example.test');
 update public.employees set is_admin=true where email='admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(id,name) values
  ('10000000-0000-0000-0000-000000000001','Test shirt'),
  ('10000000-0000-0000-0000-000000000002','Test bottle'),
@@ -73,7 +74,7 @@ do $$ begin
 end $$;
 
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true);
-select pg_temp.assert((select count(*)=4 from public.employees where email in ('admin@example.test','employee@example.test','new@example.test','outsider@example.test')),'admin sees employee profiles');
+select pg_temp.assert((select count(*)=3 from public.employees where email in ('admin@example.test','employee@example.test','new@example.test','outsider@example.test')),'unit admin sees only registered employee profiles');
 select public.admin_update_order((select id from public.orders limit 1),'confirmed','Checked',null);
 select public.admin_update_order((select id from public.orders limit 1),'shipped','Sent','TEST-TRACK');
 select pg_temp.assert((select total_qty=4 and reserved_qty=0 from public.product_variants where sku='TEST-SHIRT'),'shipping writes off reservation');
@@ -87,7 +88,7 @@ do $$ begin
 end $$;
 select public.admin_set_order_handout((select id from public.orders limit 1),'Shelf A','refused',null);
 select pg_temp.assert((select storage_location='Shelf A' from public.orders),'handout fields');
-insert into storage.objects(bucket_id,name) values('merch-products','test.jpg');
+insert into storage.objects(bucket_id,name) values('merch-products','10000000-0000-4000-8000-000000000002/test.jpg');
 select pg_temp.assert((select count(*)=1 from storage.objects),'admin can upload images');
 update public.employee_directory set full_name='HR updated name' where email='employee@example.test';
 select pg_temp.assert((select full_name='HR updated name' from public.employees where email='employee@example.test'),'HR sync updates profile');
@@ -98,5 +99,5 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select pg_temp.assert((select count(*)=18 from pg_tables where schemaname='public'),'all eighteen tables including fulfillment choices installed');
+select pg_temp.assert((select count(*)=22 from pg_tables where schemaname='public'),'all business tables including unit membership and transfer history installed');
 rollback;

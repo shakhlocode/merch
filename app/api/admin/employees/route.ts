@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: employeeError.message }, { status: 400 })
     }
 
-    if (!employee?.is_admin || employee.is_active === false) {
+    if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
       return NextResponse.json(
         { error: 'Доступ разрешён только администратору' },
         { status: 403 }
@@ -145,7 +145,7 @@ function cleanText(value: unknown) {
 function mapError(message: string) {
   if (message.includes('employee_directory_external_id_key')) return 'Этот идентификатор уже занят другим сотрудником'
   if (message.includes('employee_directory_email_lower_key') || message.includes('duplicate key')) {
-    return 'Сотрудник с таким email уже есть в реестре'
+    return 'Этот сотрудник уже добавлен в один из магазинов. Один сотрудник может иметь доступ только к одному магазину.'
   }
   return message
 }

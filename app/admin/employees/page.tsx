@@ -1,11 +1,13 @@
 import type {StockRow} from '@/lib/analytics'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import Link from '@/components/ShopLink'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import AdminEmployeesClient, { type DirectoryEmployee } from './AdminEmployeesClient'
 
 export default async function AdminEmployeesPage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const {
@@ -38,7 +40,7 @@ export default async function AdminEmployeesPage() {
     )
   }
 
-  if (!employee?.is_admin || employee.is_active === false) {
+  if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
     return (
       <main className="page-error">
         <section className="error-card">

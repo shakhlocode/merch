@@ -1,6 +1,8 @@
 'use client'
 
-import Link from 'next/link'
+import { unitFetch } from '@/lib/shop-context'
+
+import Link from '@/components/ShopLink'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -30,7 +32,7 @@ export default function AppNav({
 }: AppNavProps) {
   const pathname = usePathname()
   const [scope,setScope]=useState<'catalog'|'welcome'|null>(storeScope??null)
-  useEffect(()=>{if(storeScope){setScope(storeScope);return}let stop=false;fetch('/api/access',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(!stop&&d.allowed)setScope(d.scope==='welcome'?'welcome':'catalog')}).catch(()=>{});return()=>{stop=true}},[storeScope])
+  useEffect(()=>{if(storeScope){setScope(storeScope);return}let stop=false;unitFetch('/api/access',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(!stop&&d.allowed)setScope(d.scope==='welcome'?'welcome':'catalog')}).catch(()=>{});return()=>{stop=true}},[storeScope])
   const [loggingOut, setLoggingOut] = useState(false)
   function isItemActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`)
@@ -39,7 +41,7 @@ export default function AppNav({
   async function handleLogout() {
     setLoggingOut(true)
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await unitFetch('/api/auth/logout', { method: 'POST' })
     } finally {
       window.location.href = '/login'
     }

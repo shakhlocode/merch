@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 import SetPasswordClient from './SetPasswordClient'
 
 type SetPasswordPageProps = {
@@ -9,6 +9,8 @@ type SetPasswordPageProps = {
 }
 
 export default async function SetPasswordPage({ searchParams }: SetPasswordPageProps) {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const params = await searchParams
   const isReset = params.reset === '1'
   const supabase = await createClient()

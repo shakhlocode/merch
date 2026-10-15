@@ -6,8 +6,8 @@ import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
 import OrderBarcode from '@/components/OrderBarcode'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import Link from '@/components/ShopLink'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import { decline, getProductLetter } from '@/lib/utils'
@@ -81,6 +81,8 @@ const statusPillClass: Record<OrderStatus, string> = {
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 export default async function OrdersPage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -88,12 +90,6 @@ export default async function OrdersPage() {
   await requireSystemAccess(supabase)
 
   if (await needsPasswordSetup(supabase, user.id)) redirect('/set-password')
-
-  const { data: employee } = await supabase
-    .from('employees')
-    .select('is_admin')
-    .eq('id', user.id)
-    .maybeSingle()
 
   const { data: rawOrders, error } = await supabase
     .from('orders')
@@ -112,7 +108,7 @@ export default async function OrdersPage() {
     supabase.rpc('order_responsible_contacts',{p_order_ids:(rawOrders||[]).slice(0,2000).map(o=>o.id)}),
   ])
 
-  const isAdmin = Boolean(employee?.is_admin)
+  const isAdmin = Boolean((await supabase.rpc('is_admin', {})).data)
 
   /* ── Error state ───────────────────────────────────────────────────────── */
   if (error) {

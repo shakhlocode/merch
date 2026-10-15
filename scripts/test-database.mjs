@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql','supabase/tests/business-units.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')
@@ -66,6 +66,7 @@ try {
       values('race-admin@example.test','Second issuing admin',current_date-interval '1 year');
     insert into auth.users(id,email) values('00000000-0000-0000-0000-000000000006','race-admin@example.test');
     update public.employees set is_admin=true where email='race-admin@example.test';
+    insert into public.shop_admins select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
     select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000005',false);
     select public.admin_update_order((select id from public.orders),'ready',null,null);
   `)
@@ -132,6 +133,31 @@ try {
   const bound=run(['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'],`select (select count(*) from public.employee_audit_log where employee_directory_id='30000000-0000-0000-0000-000000000061' and action='invite_claimed')=1 and invitation_user_id='00000000-0000-0000-0000-000000000061' from public.employee_directory where id='30000000-0000-0000-0000-000000000061';`)
   if(bound.stdout.trim()!=='t')throw new Error('Concurrent claim corrupted account binding or audit')
   console.log('PASS: simultaneous invitation claims bind one account and record one activation')
+
+  run(['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'], `
+    insert into public.shop_super_admins values('race@example.test');
+    insert into public.products(id,unit_id,name) values('10000000-0000-4000-8000-000000000081','10000000-0000-4000-8000-000000000001','Transfer target');
+    insert into public.product_variants(id,unit_id,product_id,stock_family_id,sku)
+      select '20000000-0000-4000-8000-000000000081','10000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000081',stock_family_id,sku
+      from public.product_variants where id='20000000-0000-0000-0000-000000000007';`)
+  function transfer() {
+    return new Promise((resolve,reject)=>{
+      const child=spawn('docker',['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'])
+      let stdout='',stderr='';child.stdout.on('data',d=>{stdout+=d});child.stderr.on('data',d=>{stderr+=d});child.on('error',reject)
+      child.on('close',status=>status!==0?reject(new Error(stderr)):resolve(JSON.parse(stdout.split('\n').find(l=>l.startsWith('{')))))
+      child.stdin.end(`begin;set local role authenticated;select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000005',true);
+        select public.super_transfer_stock('50000000-0000-4000-8000-000000000081','20000000-0000-0000-0000-000000000007','20000000-0000-4000-8000-000000000081',2);select pg_sleep(0.3);commit;`)
+    })
+  }
+  const transfers=await Promise.all([transfer(),transfer()])
+  if(transfers.filter(t=>t.already_applied).length!==1)throw new Error('Concurrent transfer applied twice')
+  const transferStock=run(['exec','-i',name,'psql','-At','-U','postgres','-v','ON_ERROR_STOP=1'],`select
+    (select count(*)=1 from public.stock_transfers) and
+    (select count(*)=2 from public.stock_movements where comment like 'Перенос между складами:%') and
+    (select total_qty=3 from public.product_variants where id='20000000-0000-0000-0000-000000000007') and
+    (select total_qty=2 and reserved_qty=0 from public.product_variants where id='20000000-0000-4000-8000-000000000081');`)
+  if(transferStock.stdout.trim()!=='t')throw new Error('Concurrent transfer changed physical total or ledger')
+  console.log('PASS: simultaneous retries transfer stock once, preserving physical total and reservations')
 
 } finally {
   spawnSync('docker', ['rm', '--force', '--volumes', name], { stdio: 'ignore' })

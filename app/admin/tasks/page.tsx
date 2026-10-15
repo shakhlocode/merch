@@ -1,2 +1,4 @@
-import {redirect} from 'next/navigation'
-export default function Page(){redirect('/admin/orders?work=attention')}
+import { shopRedirect } from '@/lib/shop-redirect'
+export default async function Page(){
+  const redirect: (path: string) => never = await shopRedirect()
+redirect('/admin/orders?work=attention')}

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 
 type HomePageProps = {
   searchParams: Promise<{
@@ -11,6 +11,8 @@ type HomePageProps = {
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const params = await searchParams
 
   if (params.token_hash) {

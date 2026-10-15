@@ -30,7 +30,7 @@ export async function requireAdmin(supabase: SupabaseServerClient) {
     }
   }
 
-  if (!employee?.is_admin || employee.is_active === false) {
+  if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
     return {
       ok: false as const,
       status: 403,

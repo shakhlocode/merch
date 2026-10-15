@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: employee, error: employeeError } = await supabase
+    const { error: employeeError } = await supabase
       .from('employees')
       .select('id, is_admin')
       .eq('id', user.id)
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!employee?.is_admin) {
+    if (!(await supabase.rpc('is_admin', {})).data) {
       return NextResponse.json(
         { error: 'Загружать изображения может только администратор' },
         { status: 403 }
@@ -82,7 +82,9 @@ export async function POST(request: NextRequest) {
         ? productId.trim()
         : 'new-product'
 
-    const filePath = `products/${safeProductFolder}/${crypto.randomUUID()}.${extension}`
+    const { data: unitId } = await supabase.rpc('current_unit_id', {})
+    if (!unitId) return NextResponse.json({error:'Магазин не выбран'},{status:403})
+    const filePath = `${unitId}/products/${safeProductFolder}/${crypto.randomUUID()}.${extension}`
 
     const arrayBuffer = await file.arrayBuffer()
     const bytes = new Uint8Array(arrayBuffer)

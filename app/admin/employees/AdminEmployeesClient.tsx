@@ -1,5 +1,9 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+import { useContext } from 'react'
+import { ShopContextValue } from '@/components/ShopProvider'
+
 import WelcomeInvitations from '@/components/WelcomeInvitations'
 import InvitationQueue from '@/components/InvitationQueue'
 import InvitationChoice, { type InvitationChoiceValue } from '@/components/InvitationChoice'
@@ -133,6 +137,7 @@ export default function AdminEmployeesClient({
       stockAlertCount={stockAlertCount}
     >
       <section className="ae-page ae-directory-simple">
+        <ShopGrantNotice />
         <WelcomeInvitations employees={employees.filter(e=>e.is_active)} defaultOpen={searchParams.get('welcome')==='1'} />
 
         {/* Summary */}
@@ -270,6 +275,11 @@ export default function AdminEmployeesClient({
   )
 }
 
+function ShopGrantNotice() {
+  const shop=useContext(ShopContextValue)
+  return <p>Добавление и импорт дают доступ к магазину «{shop.units.find(u=>u.id===shop.unit_id)?.name||'Текущий магазин'}». Один сотрудник — один магазин. Кадровые БЮ и юрлицо не определяют доступ. Для приглашения выберите письмо или личную ссылку с идентификатором.</p>
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  EmployeeEditor — shared create/edit form                                     */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -305,7 +315,7 @@ function EmployeeEditor({
     setError(null)
 
     try {
-      const response = await fetch('/api/admin/employees', {
+      const response = await unitFetch('/api/admin/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

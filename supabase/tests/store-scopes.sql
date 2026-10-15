@@ -13,6 +13,7 @@ insert into auth.users(id,email,email_confirmed_at) values
  ('00000000-0000-0000-0000-000000000082','scope-welcome@example.test',now()),
  ('00000000-0000-0000-0000-000000000084','scope-uninvited@example.test',now());
 update public.employees set is_admin=true where email='scope-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(id,name,placement) values ('10000000-0000-0000-0000-000000000081','Catalog-only','catalog'),('10000000-0000-0000-0000-000000000082','Welcome-only','welcome'),('10000000-0000-0000-0000-000000000083','Both shops','both');
 insert into public.product_variants(id,product_id,sku) values ('20000000-0000-0000-0000-000000000081','10000000-0000-0000-0000-000000000081','SCOPE-C'),('20000000-0000-0000-0000-000000000082','10000000-0000-0000-0000-000000000082','SCOPE-W'),('20000000-0000-0000-0000-000000000083','10000000-0000-0000-0000-000000000083','SCOPE-B');
 insert into public.stock_movements(variant_id,movement_type,qty) select id,'income',10 from public.product_variants where sku like 'SCOPE-%';
@@ -38,7 +39,7 @@ select public.admin_create_invitation('40000000-0000-0000-0000-000000000082','30
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000082',true);
 select pg_temp.assert(not public.has_system_access(),'pending Welcome invitation does not grant access before activation');
 reset role;set local role service_role;
-select pg_temp.assert(public.claim_invitation('40000000-0000-0000-0000-000000000082','00000000-0000-0000-0000-000000000082',null)->>'next'='/welcome','Welcome invite lands on Welcome rather than catalog');
+select pg_temp.assert(public.claim_invitation('40000000-0000-0000-0000-000000000082','00000000-0000-0000-0000-000000000082',null)->>'next'='/welcome?unit=10000000-0000-4000-8000-000000000002','Welcome invite lands on Welcome rather than catalog');
 reset role;set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000082',true);
 select pg_temp.assert(public.my_store_scope()='welcome' and not public.has_shop_access('catalog') and public.has_shop_access('welcome') and (select count(*)=2 from public.products) and not exists(select 1 from public.product_variants where sku='SCOPE-C'),'Welcome recipient sees only Welcome and both-placement inventory');
@@ -69,7 +70,7 @@ select pg_temp.assert(not public.has_system_access() and public.my_store_scope()
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000080',true);
 select public.admin_create_invitation('40000000-0000-0000-0000-000000000083','30000000-0000-0000-0000-000000000082',repeat('5',64),repeat('6',64),'email','catalog');
 reset role;set local role service_role;
-select pg_temp.assert(public.claim_invitation('40000000-0000-0000-0000-000000000083','00000000-0000-0000-0000-000000000082',null)->>'next'='/catalog','later distribution can grant catalog access after Welcome order is complete');
+select pg_temp.assert(public.claim_invitation('40000000-0000-0000-0000-000000000083','00000000-0000-0000-0000-000000000082',null)->>'next'='/catalog?unit=10000000-0000-4000-8000-000000000002','later distribution can grant catalog access after Welcome order is complete');
 reset role;set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000082',true);
 select pg_temp.assert(public.my_store_scope()='catalog' and not public.has_shop_access('welcome') and not exists(select 1 from public.orders where order_scope='welcome'),'new catalog grant cannot reopen the previous Welcome shop/history in the customer session');

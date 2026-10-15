@@ -1,5 +1,9 @@
 'use client'
 
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
+
 import { useState } from 'react'
 
 export type EmployeeProfile = {
@@ -42,7 +46,7 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
     setError(null)
 
     try {
-      const res = await fetch('/api/profile', {
+      const res = await unitFetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: fullName, phone, department, position, city, office }),
@@ -80,8 +84,8 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
             город и офис будут автоматически подставляться в корзину.
           </p>
           <div className="profile-hero-actions">
-            <a href="/" className="btn btn-accent btn-md">Выбрать мерч</a>
-            <a href="/orders"  className="btn btn-ghost  btn-md">Мои заказы</a>
+            <ShopAnchor href="/" className="btn btn-accent btn-md">Выбрать мерч</ShopAnchor>
+            <ShopAnchor href="/orders"  className="btn btn-ghost  btn-md">Мои заказы</ShopAnchor>
           </div>
         </div>
 

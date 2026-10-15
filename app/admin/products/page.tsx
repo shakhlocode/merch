@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import Link from '@/components/ShopLink'
+import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
 import AdminProductsClient, {
@@ -8,6 +8,8 @@ import AdminProductsClient, {
 } from './AdminProductsClient'
 
 export default async function AdminProductsPage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const {
@@ -22,7 +24,7 @@ export default async function AdminProductsPage() {
     redirect('/set-password')
   }
 
-  const { data: employee, error: employeeError } = await supabase
+  const { error: employeeError } = await supabase
     .from('employees')
     .select('id, email, full_name, is_admin')
     .eq('id', user.id)
@@ -40,7 +42,7 @@ export default async function AdminProductsPage() {
     )
   }
 
-  if (!employee?.is_admin) {
+  if (!(await supabase.rpc('is_admin', {})).data) {
     return (
       <main className="page-error">
         <section className="error-card">

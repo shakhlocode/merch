@@ -1,4 +1,6 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { orderAction, type VisitReminder } from '@/lib/order-attention'
@@ -49,7 +51,7 @@ export default function OrderNextAction({
                   setBusy(true)
                   setError('')
                   try {
-                    const r = await fetch('/api/admin/tasks', {
+                    const r = await unitFetch('/api/admin/tasks', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

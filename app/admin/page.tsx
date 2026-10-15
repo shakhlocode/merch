@@ -1,3 +1,5 @@
+
+import ShopAnchor from '@/components/ShopAnchor'
 import CsvDownload from '@/components/CsvDownload'
 import type {StockRow} from '@/lib/analytics'
 import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,type WorkStatus} from '@/lib/order-workflow'
@@ -5,7 +7,7 @@ import {orderAction} from '@/lib/order-attention'
 import AdminShell from '@/components/AdminShell'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 
 type OrderStatus =
   | 'new' | 'review' | 'confirmed' | 'assembling'
@@ -24,6 +26,8 @@ type AdminDashOrder = {
 }
 
 export default async function AdminDashboardPage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -36,7 +40,7 @@ export default async function AdminDashboardPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!employee?.is_admin || !employee.is_active) redirect('/catalog')
+  if (!(await supabase.rpc('is_admin', {})).data || !employee || !employee.is_active) redirect('/catalog')
 
   // Read every page: dashboard counts and CSV must not stop at 1,000 orders.
   async function loadOrders() {
@@ -87,7 +91,7 @@ export default async function AdminDashboardPage() {
       orderCount={orders.length}
       stockAlertCount={lowStockVariants.length}
     >
-      <div className="pickup-option-actions"><a href="/admin/analytics" className="ao-light-btn">Аналитика выдач за период →</a><CsvDownload filename="uzum-merch-dashboard.csv" label="Сводка CSV" rows={[
+      <div className="pickup-option-actions"><ShopAnchor href="/admin/analytics" className="ao-light-btn">Аналитика выдач за период →</ShopAnchor><CsvDownload filename="uzum-merch-dashboard.csv" label="Сводка CSV" rows={[
         {'Показатель':'Активных заказов','Количество':String(activeOrders.length)},
         {'Показатель':'Новые заявки за последние 7 дней','Количество':String(newThisWeek.length)},
         {'Показатель':'Предупреждений об остатках','Количество':String(lowStockVariants.length)},
@@ -98,7 +102,7 @@ export default async function AdminDashboardPage() {
         <KpiCard tone="primary"  label="Активных заказов"        value={String(activeOrders.length)}     hint={`из ${orders.length} всего`} />
         <KpiCard tone="default"  label="Новые за неделю"         value={String(newThisWeek.length)}      hint="заявки за последние 7 дней" />
         <KpiCard tone="danger"   label="Позиций в дефиците"      value={String(lowStockVariants.length)} hint="по настроенным порогам" />
-        <a href="/admin/orders?work=attention" className="dash-kpi-link"><KpiCard tone="default" label="Требуют внимания" value={String(attentionCount)} hint="подготовить, связаться или выдать →"/></a>
+        <ShopAnchor href="/admin/orders?work=attention" className="dash-kpi-link"><KpiCard tone="default" label="Требуют внимания" value={String(attentionCount)} hint="подготовить, связаться или выдать →"/></ShopAnchor>
       </section>
 
       {/* ── Dashboard 2×2 ── */}
@@ -108,7 +112,7 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">По статусам</h2>
-            <a href="/admin/orders" className="dash-card-link">Все заказы →</a>
+            <ShopAnchor href="/admin/orders" className="dash-card-link">Все заказы →</ShopAnchor>
           </div>
           <div className="dash-status-grid">
             {statusCounters.map(item => (
@@ -125,7 +129,7 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">Свежие заказы</h2>
-            <div><a href="/admin/orders" className="dash-card-link">Все →</a><CsvDownload filename="uzum-merch-recent-orders.csv" label="CSV списка" rows={recentOrders.map(o=>({'Заказ':o.order_number,'Статус':workStatusLabel(o),'Дата создания':o.created_at}))}/></div>
+            <div><ShopAnchor href="/admin/orders" className="dash-card-link">Все →</ShopAnchor><CsvDownload filename="uzum-merch-recent-orders.csv" label="CSV списка" rows={recentOrders.map(o=>({'Заказ':o.order_number,'Статус':workStatusLabel(o),'Дата создания':o.created_at}))}/></div>
           </div>
           <div className="dash-recent-list">
             {recentOrders.length === 0 ? (
@@ -151,9 +155,9 @@ export default async function AdminDashboardPage() {
         <div className="dash-card">
           <div className="dash-card-head">
             <h2 className="dash-card-title">Предупреждения об остатках</h2>
-            <a href="/admin/products" className="dash-card-link">В склад →</a>
+            <ShopAnchor href="/admin/products" className="dash-card-link">В склад →</ShopAnchor>
           </div>
-          <a className="ao-light-btn" href="/api/admin/analytics?report=alerts">Экспорт CSV</a>
+          <ShopAnchor className="ao-light-btn" href="/api/admin/analytics?report=alerts">Экспорт CSV</ShopAnchor>
           {lowStockVariants.length>7&&<p>Показаны 7 из {lowStockVariants.length}. Все предупреждения — в аналитике и CSV.</p>}
           <div className="dash-stock-list">
             {lowStockVariants.length === 0 ? (

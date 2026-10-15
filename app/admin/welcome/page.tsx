@@ -1,5 +1,7 @@
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 
-export default function Page() {
+export default async function Page() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   redirect('/admin/employees?welcome=1')
 }

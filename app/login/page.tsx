@@ -1,5 +1,7 @@
 'use client'
 
+import ShopAnchor from '@/components/ShopAnchor'
+
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useMemo, useState } from 'react'
@@ -46,7 +48,7 @@ function LoginContent() {
       }
 
       const { data: allowed, error: accessError } = await supabase.rpc('has_system_access', {})
-      if (accessError || !allowed) { router.replace('/access-closed'); return }
+      if (accessError || !allowed) { window.location.replace('/access-closed'); return }
 
       const { data: employee } = await supabase
         .from('employees')
@@ -54,7 +56,7 @@ function LoginContent() {
         .eq('id', user.id)
         .maybeSingle()
 
-      router.replace(employee?.password_set_at ? '/catalog' : '/set-password')
+      window.location.replace(employee?.password_set_at ? '/catalog' : '/set-password')
     }
 
     checkSession()
@@ -108,11 +110,11 @@ function LoginContent() {
           .eq('id', user.id)
           .maybeSingle()
 
-        router.replace(employee?.password_set_at ? '/catalog' : '/set-password')
+        window.location.replace(employee?.password_set_at ? '/catalog' : '/set-password')
         return
       }
 
-      router.replace('/catalog')
+      window.location.replace('/catalog')
     } catch (loginError) {
       setError(
         loginError instanceof Error ? loginError.message : 'Неизвестная ошибка'
@@ -175,13 +177,13 @@ function LoginContent() {
     <main className="login-page login-welcome">
       <section className="login-shell">
         <div className="login-left">
-          <a href="/login" className="login-brand">
+          <ShopAnchor href="/login" className="login-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/uzum-big-logo.webp" alt="Uzum" className="login-logo" />
             <span className="login-brand-text">
               uzum <span className="fw-regular">мерч</span>
             </span>
-          </a>
+          </ShopAnchor>
 
           <div className="login-hero">
             <h1 className="login-title">Uzum Merch Shop</h1>
@@ -197,7 +199,7 @@ function LoginContent() {
           </section>
           <div className="login-help">
             <span className="login-help-icon" aria-hidden="true">?</span>
-            <div><strong>Нужна помощь?</strong><br /><a href="mailto:s.xamrayeva@uzum.com">Свяжитесь с нами</a></div>
+            <div><strong>Нужна помощь?</strong><br /><ShopAnchor href="mailto:s.xamrayeva@uzum.com">Свяжитесь с нами</ShopAnchor></div>
           </div>
         </div>
 

@@ -1,11 +1,15 @@
+
+import ShopAnchor from '@/components/ShopAnchor'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
-import { redirect } from 'next/navigation'
+import { shopRedirect } from '@/lib/shop-redirect'
 import ProfileClient, { type EmployeeProfile } from './ProfileClient'
 
 export default async function ProfilePage() {
+  const redirect: (path: string) => never = await shopRedirect()
+
   const supabase = await createClient()
 
   const {
@@ -49,7 +53,7 @@ export default async function ProfilePage() {
     position: employee?.position ?? '',
     city: employee?.city ?? '',
     office: employee?.office ?? '',
-    is_admin: Boolean(employee?.is_admin),
+    is_admin: Boolean((await supabase.rpc('is_admin', {})).data),
   }
 
   return (
@@ -57,7 +61,7 @@ export default async function ProfilePage() {
       <header className="site-head">
         <div className="site-head-glass" aria-hidden="true" />
         <div className="head-inner">
-          <a href="/" className="brand">
+          <ShopAnchor href="/" className="brand">
             <span className="brand-mark">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/uzum-big-logo.webp" alt="Uzum" />
@@ -66,7 +70,7 @@ export default async function ProfilePage() {
               uzum <span className="brand-name-soft">мерч</span>
             </span>
             <span className="brand-sub">личный кабинет</span>
-          </a>
+          </ShopAnchor>
 
           <AppNav isAdmin={profile.is_admin} showLogout />
         </div>

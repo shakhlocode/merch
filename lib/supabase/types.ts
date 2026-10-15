@@ -59,25 +59,29 @@ export type Database = {
   public: {
     Tables: {
       pickup_offices: {
-        Row: { id: string; name: string; address: string; is_active: boolean; sort: number; deleted_at:string|null }
+        Row: {
+          unit_id: string; id: string; name: string; address: string; is_active: boolean; sort: number; deleted_at:string|null }
         Insert: { id?: string; name: string; address?: string; is_active?: boolean; sort?: number; deleted_at?:string|null }
         Update: Partial<Database['public']['Tables']['pickup_offices']['Insert']>
         Relationships: never[]
       }
       fulfillment_choices: {
-        Row: { id: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active: boolean; sort: number; deleted_at:string|null }
+        Row: {
+          unit_id: string; id: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active: boolean; sort: number; deleted_at:string|null }
         Insert: { id?: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active?: boolean; sort?: number; deleted_at?:string|null }
         Update: Partial<Database['public']['Tables']['fulfillment_choices']['Insert']>
         Relationships: never[]
       }
       order_tasks: {
-        Row: { id: string; order_id: string; due_on: string; reserve_until: string; contacted_at: string | null; contacted_by: string | null; closed_at: string | null; created_at: string }
+        Row: {
+          unit_id: string; id: string; order_id: string; due_on: string; reserve_until: string; contacted_at: string | null; contacted_by: string | null; closed_at: string | null; created_at: string }
         Insert: never
         Update: never
         Relationships: [Rel<'order_tasks_order_id_fkey', ['order_id'], 'orders', ['id']>]
       }
       order_events: {
-        Row: { id: string; order_id: string; actor_id: string | null; action: string; data: Record<string, unknown>; created_at: string }
+        Row: {
+          unit_id: string; id: string; order_id: string; actor_id: string | null; action: string; data: Record<string, unknown>; created_at: string }
         Insert: never
         Update: never
         Relationships: never[]
@@ -118,13 +122,15 @@ export type Database = {
         Relationships: never[]
       }
       employee_invitations: {
-        Row: { store_scope: string; id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
+        Row: {
+          unit_id: string; store_scope: string; id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
         Insert: never
         Update: { delivery_status?: string; delivery_started_at?: string | null; delivery_error?: string | null }
         Relationships: never[]
       }
       employee_directory: {
         Row: {
+          unit_id: string
           store_scope: string
           legal_entity: string | null
           id:            string
@@ -145,6 +151,7 @@ export type Database = {
           updated_at:    string
         }
         Insert: {
+          unit_id?: string
           store_scope?: string
           legal_entity?: string | null
           id?:            string
@@ -167,6 +174,7 @@ export type Database = {
       }
       employee_audit_log: {
         Row: {
+          unit_id: string
           id:                    string
           employee_directory_id: string | null
           actor_id:              string | null
@@ -175,6 +183,7 @@ export type Database = {
           created_at:            string
         }
         Insert: {
+          unit_id?: string
           id?:                    string
           employee_directory_id?: string | null
           actor_id?:              string | null
@@ -188,13 +197,14 @@ export type Database = {
         ]
       }
       categories: {
-        Row:    { id: string; name: string; sort: number }
-        Insert: { id?: string; name: string; sort?: number }
+        Row:    { unit_id: string; id: string; name: string; sort: number }
+        Insert: { unit_id?: string; id?: string; name: string; sort?: number }
         Update: Partial<Database['public']['Tables']['categories']['Insert']>
         Relationships: never[]
       }
       products: {
         Row: {
+          unit_id: string
           id:          string
           placement:   string
           name:        string
@@ -208,6 +218,7 @@ export type Database = {
           updated_at:  string
         }
         Insert: {
+          unit_id?: string
           id?:          string
           placement?:   string
           name:         string
@@ -225,6 +236,7 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          unit_id: string
           id:           string
           product_id:   string
           size:         string | null
@@ -238,6 +250,7 @@ export type Database = {
           updated_at:   string
         }
         Insert: {
+          unit_id?: string
           id?:           string
           product_id:    string
           size?:         string | null
@@ -255,6 +268,7 @@ export type Database = {
       }
       product_limits: {
         Row: {
+          unit_id: string
           id:             string
           product_id:     string
           limit_per_emp:  number
@@ -263,6 +277,7 @@ export type Database = {
           created_at:     string
         }
         Insert: {
+          unit_id?: string
           id?:             string
           product_id:      string
           limit_per_emp?:  number
@@ -276,6 +291,7 @@ export type Database = {
       }
       carts: {
         Row: {
+          unit_id: string
           id:          string
           employee_id: string
           status:      string
@@ -290,6 +306,7 @@ export type Database = {
       }
       cart_items: {
         Row: {
+          unit_id: string
           id:         string
           cart_id:    string
           product_id: string
@@ -298,6 +315,7 @@ export type Database = {
           created_at: string
         }
         Insert: {
+          unit_id?: string
           id?:        string
           cart_id:    string
           product_id: string
@@ -313,6 +331,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          unit_id: string
           order_scope: string
           fulfillment_mode: string | null
           fulfillment_choice_id: string | null
@@ -361,6 +380,7 @@ export type Database = {
           cancelled_at:     string | null
         }
         Insert: {
+          unit_id?: string
           order_scope?: string
           fulfillment_mode?: string | null
           fulfillment_choice_id?: string | null
@@ -415,6 +435,7 @@ export type Database = {
       }
       merch_settings: {
         Row: {
+          unit_id: string
           catalog_rules: string
           welcome_rules: string
           shipping_message: string
@@ -432,6 +453,7 @@ export type Database = {
           updated_at:       string
         }
         Insert: {
+          unit_id?: string
           catalog_rules?: string
           welcome_rules?: string
           shipping_message?: string
@@ -453,6 +475,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          unit_id: string
           id:           string
           order_id:     string
           product_id:   string
@@ -465,6 +488,7 @@ export type Database = {
           created_at:   string
         }
         Insert: {
+          unit_id?: string
           id?:           string
           order_id:      string
           product_id:    string
@@ -484,6 +508,7 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          unit_id: string
           id:             string
           variant_id:     string
           movement_type:  MovementType
@@ -494,6 +519,7 @@ export type Database = {
           created_at:     string
         }
         Insert: {
+          unit_id?: string
           id?:             string
           variant_id:      string
           movement_type:   MovementType
@@ -521,6 +547,15 @@ export type Database = {
       }
     }
     Functions: {
+      is_admin: { Args: Record<string, never>; Returns: boolean }
+      is_super_admin: { Args: Record<string, never>; Returns: boolean }
+      current_unit_id: { Args: Record<string, never>; Returns: string | null }
+      my_shop_context: { Args: Record<string, never>; Returns: unknown }
+      admin_shop_contacts: { Args: Record<string, never>; Returns: {id:string;full_name:string;email:string;phone:string|null}[] }
+      super_admin_roles: { Args: Record<string, never>; Returns: unknown }
+      super_set_admin: { Args: {p_email:string;p_unit:string|null;p_super:boolean;p_enabled:boolean}; Returns: undefined }
+      super_stock_overview: { Args: Record<string, never>; Returns: unknown }
+      super_transfer_stock: { Args: {p_id:string;p_source:string;p_target:string;p_qty:number}; Returns: unknown }
       admin_stock_report: { Args: {p_query?:string}; Returns: unknown }
       admin_handout_report: { Args: {p_from:string;p_until:string;p_scope?:string;p_mode?:string;p_query?:string}; Returns: unknown }
       order_responsible_contacts: { Args: {p_order_ids:string[]}; Returns:{order_id:string;full_name:string;email:string;phone:string|null}[] }

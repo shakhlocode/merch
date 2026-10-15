@@ -14,6 +14,7 @@ insert into auth.users(id,email) values
  ('00000000-0000-0000-0000-000000000043','a-expired@example.test'),
  ('00000000-0000-0000-0000-000000000044','a-period@example.test');
 update public.employees set is_admin=true where email='a-admin@example.test';
+insert into public.shop_admins(email,unit_id) select lower(email),'10000000-0000-4000-8000-000000000002'::uuid from public.employees where is_admin on conflict do nothing;
 insert into public.products(id,name) values('10000000-0000-0000-0000-000000000041','Access shirt'),('10000000-0000-0000-0000-000000000042','Access bottle');
 insert into public.product_variants(id,product_id,sku) values
  ('20000000-0000-0000-0000-000000000041','10000000-0000-0000-0000-000000000041','A-SHIRT'),

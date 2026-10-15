@@ -1,4 +1,8 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
+
+import ShopAnchor from '@/components/ShopAnchor'
 import Image from 'next/image'
 import {usePathname} from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -35,14 +39,14 @@ export default function InvitePage() {
               setBusy(true)
               setError('')
               try {
-                const r = await fetch('/api/invitations/redeem', {
+                const r = await unitFetch('/api/invitations/redeem', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ token, identifier }),
                 })
                 const d = await r.json()
                 if (!r.ok) throw new Error(d.error)
-                window.location.replace(d.next==='/welcome'?'/welcome':'/catalog')
+                window.location.replace(typeof d.next === 'string' && /^\/(welcome|catalog)(\?|$)/.test(d.next) ? d.next : '/catalog')
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Ошибка входа')
               } finally {
@@ -79,9 +83,9 @@ export default function InvitePage() {
             сохраните этот браузер: при его потере обратитесь к администратору
             за новым приглашением.
           </p>
-          <a href="/catalog">Уже активировали? Открыть магазин</a>
+          <ShopAnchor href="/catalog">Уже активировали? Открыть магазин</ShopAnchor>
           <p>
-            <a href="mailto:s.xamrayeva@uzum.com">Связаться с нами</a>
+            <ShopAnchor href="mailto:s.xamrayeva@uzum.com">Связаться с нами</ShopAnchor>
           </p>
         </div>
       </section>

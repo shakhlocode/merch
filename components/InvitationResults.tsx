@@ -1,4 +1,6 @@
 'use client'
+
+import { unitFetch } from '@/lib/shop-context'
 import { useState } from 'react'
 import type { InvitationResult } from '@/lib/invitations'
 import { toCsv } from '@/lib/utils'
@@ -94,7 +96,7 @@ export default function InvitationResults({
               failed = 0
             try {
               for (let i = 0; i < 400; i++) {
-                const r = await fetch('/api/admin/invitations', {
+                const r = await unitFetch('/api/admin/invitations', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ action: 'deliver' }),

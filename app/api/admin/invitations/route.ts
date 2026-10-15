@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
     admin = await requireAdmin(supabase)
   if (!admin.ok)
     return NextResponse.json({ error: admin.error }, { status: admin.status })
+  const {data: unitId} = await supabase.rpc('current_unit_id', {})
+  if (!unitId) return NextResponse.json({error:'Магазин не выбран'},{status:403})
   const body = await request.json()
   if (body.action === 'create') {
     if (
@@ -56,14 +58,14 @@ export async function POST(request: NextRequest) {
     await service
       .from('employee_invitations')
       .update({ delivery_status: 'queued', delivery_error: null })
-      .eq('delivery_status', 'failed')
+      .eq('unit_id', unitId).eq('delivery_status', 'failed')
       .is('revoked_at', null)
       .is('claimed_at', null)
       .gt('expires_at', new Date().toISOString())
     await service
       .from('employee_invitations')
       .update({ delivery_status: 'queued', delivery_error: null })
-      .eq('delivery_status', 'sending')
+      .eq('unit_id', unitId).eq('delivery_status', 'sending')
       .lt('delivery_started_at', new Date(Date.now() - 300000).toISOString())
       .is('revoked_at', null)
       .is('claimed_at', null)
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
     const { data: jobs, error } = await service
       .from('employee_invitations')
       .select('id,employee_directory_id')
-      .eq('channel', 'email')
+      .eq('unit_id', unitId).eq('channel', 'email')
       .eq('delivery_status', 'queued')
       .is('claimed_at', null)
       .is('revoked_at', null)
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
           delivery_status: 'sending',
           delivery_started_at: new Date().toISOString(),
         })
-        .eq('id', job.id)
+        .eq('unit_id', unitId).eq('id', job.id)
         .eq('delivery_status', 'queued')
         .select('id')
         .maybeSingle()
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
         const { data: employee, error: employeeError } = await service
           .from('employee_directory')
           .select('email,is_active')
-          .eq('id', job.employee_directory_id)
+          .eq('unit_id', unitId).eq('id', job.employee_directory_id)
           .single()
         if (employeeError || !employee?.is_active)
           throw new Error('recipient_unavailable')
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
         await service
           .from('employee_invitations')
           .update({ delivery_status: 'sent', delivery_error: null })
-          .eq('id', job.id)
+          .eq('unit_id', unitId).eq('id', job.id)
         sent++
       } catch {
         await service
@@ -134,7 +136,7 @@ export async function POST(request: NextRequest) {
             delivery_error:
               'Почтовый сервис отклонил отправку. Проверьте SMTP и лимиты.',
           })
-          .eq('id', job.id)
+          .eq('unit_id', unitId).eq('id', job.id)
         failed++
       }
     }
