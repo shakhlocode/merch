@@ -67,17 +67,19 @@ export default async function ShopPage({ scope }: { scope: StoreScope }) {
   })
   const access = Array.isArray(accessRows) ? accessRows[0] : null
 
-  const [{ data: offices }, { data: identity }, { data: content }] =
+  const [{ data: offices, error: officesError }, { data: identity }, { data: content }, {data: choices,error:choicesError}] =
     await Promise.all([
       supabase
         .from('pickup_offices')
         .select('*')
-        .eq('is_active', true)
+        .is('deleted_at', null)
         .order('sort')
         .order('name'),
       supabase.rpc('my_checkout_identity', {}),
       supabase.from('merch_settings').select('*').eq('id', 1).single(),
+      supabase.from('fulfillment_choices').select('*').is('deleted_at',null).order('sort').order('name'),
     ])
+  if(officesError||choicesError)throw new Error('Не удалось загрузить варианты получения. Обновите страницу.')
 
   const defaultDeliveryAddress = [employee?.city, employee?.office]
     .filter(Boolean)
@@ -171,6 +173,7 @@ export default async function ShopPage({ scope }: { scope: StoreScope }) {
       }
       products={products}
       offices={offices ?? []}
+      choices={choices ?? []}
       identity={{
         full_name: identity?.full_name ?? employee?.full_name ?? null,
         legal_entity: identity?.legal_entity ?? null,

@@ -2,12 +2,14 @@
 import {
   type PickupDetails,
   type PickupOffice,
+  type FulfillmentChoice,
   tashkentToday,
 } from '@/lib/fulfillment'
 export default function FulfillmentForm({
   value,
   onChange,
   offices,
+  choices = [],
   identity,
   disabled,
   officeOnly = false,
@@ -15,6 +17,7 @@ export default function FulfillmentForm({
   value: PickupDetails
   onChange: (value: PickupDetails) => void
   offices: PickupOffice[]
+  choices?: FulfillmentChoice[]
   identity: { full_name: string | null; legal_entity: string | null }
   disabled: boolean
   officeOnly?: boolean
@@ -33,6 +36,7 @@ export default function FulfillmentForm({
               className="form-input"
               value={value.officeId}
               onChange={(e) =>
+                offices.some((o) => o.id === e.target.value && o.is_active) &&
                 onChange({ ...value, mode: 'office', officeId: e.target.value })
               }
             >
@@ -40,8 +44,9 @@ export default function FulfillmentForm({
                 Выберите офис
               </option>
               {offices.map((o) => (
-                <option key={o.id} value={o.id}>
+                <option key={o.id} value={o.id} disabled={!o.is_active}>
                   {o.name}
+                  {!o.is_active ? ' — недоступно' : ''}
                 </option>
               ))}
             </select>
@@ -55,6 +60,7 @@ export default function FulfillmentForm({
           <label className="form-label">
             Формат работы и получения
             <select
+              aria-label="Формат работы и получения"
               className="form-input"
               value={
                 value.mode === 'office'
@@ -65,9 +71,17 @@ export default function FulfillmentForm({
               }
               onChange={(e) => {
                 const v = e.target.value
-                if (v.startsWith('office:'))
+                if (
+                  v.startsWith('office:') &&
+                  offices.some((o) => o.id === v.slice(7) && o.is_active)
+                )
                   onChange({ ...value, mode: 'office', officeId: v.slice(7) })
-                else
+                else if (
+                  choices.some(
+                    (c) =>
+                      c.mode === v && c.is_active && c.mode !== 'placeholder'
+                  )
+                )
                   onChange({
                     ...value,
                     mode: v as PickupDetails['mode'],
@@ -80,13 +94,28 @@ export default function FulfillmentForm({
               </option>
               <optgroup label="Работаю в офисе">
                 {offices.map((o) => (
-                  <option key={o.id} value={'office:' + o.id}>
+                  <option
+                    key={o.id}
+                    value={'office:' + o.id}
+                    disabled={!o.is_active}
+                  >
                     В офисе — {o.name}
+                    {!o.is_active ? ' — недоступно' : ''}
                   </option>
                 ))}
               </optgroup>
-              <option value="remote_shipping">Удалённо — отправка</option>
-              <option value="remote_visit">Удалённо — заберу в Ташкенте</option>
+              {choices.map((c) => (
+                <option
+                  key={c.id}
+                  value={
+                    c.mode === 'placeholder' ? 'unavailable:' + c.id : c.mode
+                  }
+                  disabled={!c.is_active || c.mode === 'placeholder'}
+                >
+                  {c.name}
+                  {!c.is_active ? ' — недоступно' : ''}
+                </option>
+              ))}
             </select>
           </label>
           <p className="pickup-address">
@@ -149,8 +178,9 @@ export default function FulfillmentForm({
                 Выберите офис
               </option>
               {offices.map((o) => (
-                <option value={o.id} key={o.id}>
+                <option value={o.id} key={o.id} disabled={!o.is_active}>
                   {o.name}
+                  {!o.is_active ? ' — недоступно' : ''}
                 </option>
               ))}
             </select>

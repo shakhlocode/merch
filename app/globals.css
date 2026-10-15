@@ -4097,6 +4097,9 @@ input:focus, select:focus, textarea:focus {
 .welcome-recipient-fields select { width: 100%; text-overflow: ellipsis; }
 .welcome-employees-link { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .welcome-employees-link .ae-new-btn { text-decoration: none; }
+.pickup-form option:disabled { color: #9791a8; }
+.pickup-option-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pickup-delete-confirm { padding: 12px; border: 1px solid #f4c8c8; border-radius: 12px; }
 
 /* Checkout and administrator pickup settings */
 .pickup-form {border:0;padding:0;margin:0;min-width:0;display:grid;gap:16px;width:100%}

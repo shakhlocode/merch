@@ -3,7 +3,7 @@
 import FulfillmentForm from '@/components/FulfillmentForm'
 import OrderBarcode from '@/components/OrderBarcode'
 import {defaultStoreContent,type StoreScope} from '@/lib/store-content'
-import type { PickupDetails,PickupOffice } from '@/lib/fulfillment'
+import type { PickupDetails,PickupOffice,FulfillmentChoice } from '@/lib/fulfillment'
 import AppNav from '@/components/AppNav'
 import ProductImage from '@/components/ProductImage'
 import { getProductLetter } from '@/lib/utils'
@@ -62,6 +62,7 @@ type CatalogClientProps = {
   scope?:StoreScope
   rules?:string
   offices: PickupOffice[]
+  choices?: FulfillmentChoice[]
   identity: {full_name:string|null;legal_entity:string|null}
   products: CatalogProduct[]
   userEmail: string | null
@@ -84,7 +85,7 @@ const MAX_UNIQUE_PRODUCTS = 3
 export default function CatalogClient({
   products,
   scope='catalog',rules=defaultStoreContent.catalog_rules,
-  offices, identity,
+  offices, choices=[], identity,
   userEmail,
   userName,
   isAdmin,
@@ -195,6 +196,7 @@ export default function CatalogClient({
           shop_scope:scope,
           items:            cart.map(item => ({ variant_id: item.variant.id, qty: 1 })),
           fulfillment_mode: pickup.mode,
+          fulfillment_choice_id: pickup.mode==='office'?null:choices.find(c=>c.mode===pickup.mode)?.id,
           pickup_office_id: pickup.mode==='remote_shipping'?null:pickup.officeId,
           phone: pickup.phone,
           country: pickup.mode==='remote_shipping'?pickup.country:null,
@@ -363,6 +365,7 @@ export default function CatalogClient({
                 cart={cart}
                 totalQty={totalQty}
                 pickup={pickup} offices={offices} identity={identity} successCode={successCode}
+                choices={choices}
                 isSubmitting={isSubmitting}
                 checkoutError={checkoutError}
                 checkoutSuccess={checkoutSuccess}
@@ -478,7 +481,8 @@ function ProductCard({
 /*  CartAside                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-function CartAside({officeOnly,cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+function CartAside({choices,officeOnly,cart,totalQty,pickup,offices,identity,successCode,isSubmitting,checkoutError,checkoutSuccess,merchAccess,onRemove,onPickupChange,onCheckout}: {
+ choices:FulfillmentChoice[];
  officeOnly:boolean;
  cart:CartItem[];totalQty:number;pickup:PickupDetails;offices:PickupOffice[];identity:{full_name:string|null;legal_entity:string|null};successCode:string|null;
  isSubmitting:boolean;checkoutError:string|null;checkoutSuccess:string|null;merchAccess:MerchAccess;onRemove:(id:string)=>void;onPickupChange:(value:PickupDetails)=>void;onCheckout:()=>void
@@ -507,7 +511,7 @@ function CartAside({officeOnly,cart,totalQty,pickup,offices,identity,successCode
           <div className="cart-form">
             <a href="#catalog-grid" className="login-text-button">← Продолжить выбор товаров</a>
 
-            <FulfillmentForm officeOnly={officeOnly} value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
+            <FulfillmentForm choices={choices} officeOnly={officeOnly} value={pickup} onChange={onPickupChange} offices={offices} identity={identity} disabled={isSubmitting}/>
 
             <section className="cart-review" aria-label="Выбранные товары">
               <h3>Вы выбрали</h3>
@@ -640,6 +644,7 @@ function getInitials(fullName: string | null, email: string | null): string {
 }
 
 function getCheckoutErrorMessage(error: string): string {
+  if (error.includes('fulfillment_not_available')) return 'Этот вариант получения сейчас недоступен. Обновите страницу и выберите другой.'
   if (error.includes('welcome_office_only')) return 'Welcome pack можно получить только лично в офисе. Выберите офис получения.'
   if (error.includes('single_order_pending')) return 'У вас уже есть заказ. Разовый доступ позволяет получить только один заказ.'
   if (error.includes('access_expired') || error.includes('access_order_received')) return 'Доступ закрыт: срок закончился или разовый заказ уже получен.'

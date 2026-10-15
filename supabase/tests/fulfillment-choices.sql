@@ -1,0 +1,63 @@
+\set ON_ERROR_STOP on
+begin;
+create function pg_temp.assert(ok boolean,label text) returns void language plpgsql as $$ begin if ok is distinct from true then raise exception 'FAILED: %',label; end if; raise notice 'PASS: %',label; end $$;
+grant execute on function pg_temp.assert(boolean,text) to authenticated;
+insert into public.employee_directory(email,full_name) values('choices-admin@example.test','Choices admin'),('choices-person@example.test','Choices recipient');
+insert into auth.users(id,email) values('00000000-0000-0000-0000-000000000095','choices-admin@example.test'),('00000000-0000-0000-0000-000000000096','choices-person@example.test');
+update public.employees set is_admin=true where email='choices-admin@example.test';
+insert into public.products(id,name) values('10000000-0000-0000-0000-000000000096','Choice item');
+insert into public.product_variants(id,product_id,sku) values('20000000-0000-0000-0000-000000000096','10000000-0000-0000-0000-000000000096','CHOICE-ITEM');
+insert into public.stock_movements(variant_id,movement_type,qty) values('20000000-0000-0000-0000-000000000096','income',10);
+insert into public.pickup_offices(id,name,address,is_active) values('60000000-0000-0000-0000-000000000096','Old office','Old address',true),('60000000-0000-0000-0000-000000000097','Inactive office','Inactive address',false);
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000096',true);
+select pg_temp.assert(exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000097' and not is_active) and (select count(*)=2 from public.fulfillment_choices where mode='placeholder' and not is_active),'inactive offices and PVZ/courier placeholders are readable for grey disabled choices');
+select pg_temp.assert(not has_table_privilege('anon','public.fulfillment_choices','SELECT') and not has_table_privilege('authenticated','public.fulfillment_choices','DELETE'),'anonymous clients cannot read settings and API roles cannot physically delete referenced choices');
+update public.pickup_offices set is_active=true where id='60000000-0000-0000-0000-000000000097';
+update public.fulfillment_choices set is_active=false where mode='remote_shipping';
+select pg_temp.assert((select not is_active from public.pickup_offices where id='60000000-0000-0000-0000-000000000097') and (select is_active from public.fulfillment_choices where mode='remote_shipping'),'recipient cannot enable offices or change shipping options');
+do $$ begin
+ begin perform public.create_merch_order_v3('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_shipping',null,'+998901234567','Country','City',null,null,null,(select id from public.fulfillment_choices where mode='placeholder' limit 1));raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','placeholder',null,'+998901234567',null,null,null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','courier','Address','+998901234567',null,true,'Country');raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','pvz','Address','+998901234567',null,false,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','office','60000000-0000-0000-0000-000000000097','+998901234567',null,null,null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'Выберите действующий офис получения' then raise;end if;end;
+end $$;
+select pg_temp.assert(not exists(select 1 from public.orders) and (select reserved_qty=0 from public.product_variants where sku='CHOICE-ITEM'),'unavailable choices cannot create an order or reserve inventory through either RPC');
+select public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','office','60000000-0000-0000-0000-000000000096','+998901234567',null,null,null,null,null);
+select public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_shipping',null,'+998901234567','Country','City',null,null,null);
+select pg_temp.assert((select fulfillment_choice_name='Удалённо — отправка' and fulfillment_choice_id is not null from public.orders where fulfillment_mode='remote_shipping'),'new remote order snapshots its configured choice label and identity');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000095',true);
+update public.pickup_offices set name='New office name',address='New address',is_active=false,deleted_at=now() where id='60000000-0000-0000-0000-000000000096';
+update public.fulfillment_choices set name='Renamed shipping',is_active=false where mode='remote_shipping';
+do $$ begin
+ begin insert into public.fulfillment_choices(name,mode,is_active) values('Unsafe courier','placeholder',true);raise exception 'MISSING_DENIAL';exception when check_violation then null;end;
+ begin update public.pickup_offices set is_active=true where id='60000000-0000-0000-0000-000000000096';raise exception 'MISSING_DENIAL';exception when check_violation then null;end;
+end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000096',true);
+select pg_temp.assert(not exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000096') and exists(select 1 from public.fulfillment_choices where mode='remote_shipping' and not is_active),'deleted office is hidden while inactive shipping remains visible');
+select pg_temp.assert((select pickup_office_name='Old office' and pickup_office_address='Old address' from public.orders where fulfillment_mode='office') and (select fulfillment_choice_name='Удалённо — отправка' from public.orders where fulfillment_mode='remote_shipping'),'renaming or deleting options preserves both office and delivery snapshots');
+do $$ begin
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_shipping',null,'+998901234567','Country','City',null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','office','Address','+998901234567',null,true,'Country');raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+ begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_visit','60000000-0000-0000-0000-000000000096','+998901234567',null,null,null,current_date,current_date+10);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'Выберите действующий офис получения' then raise;end if;end;
+end $$;
+select pg_temp.assert((select count(*)=2 from public.orders) and (select reserved_qty=2 from public.product_variants where sku='CHOICE-ITEM'),'stale checkout after disabling or deleting a choice leaves existing orders and reserves unchanged');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000095',true);
+update public.fulfillment_choices set deleted_at=now() where mode='remote_shipping';
+select public.admin_update_order(id,'ready',null,null) from public.orders where fulfillment_mode='office';
+select public.admin_issue_order(pickup_code) from public.orders where fulfillment_mode='office';
+select public.admin_issue_order(pickup_code) from public.orders where fulfillment_mode='office';
+select pg_temp.assert((select total_qty=9 and reserved_qty=1 from public.product_variants where sku='CHOICE-ITEM'),'old order can still be issued exactly once after its office is removed from new checkout');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000096',true);
+select pg_temp.assert(not exists(select 1 from public.fulfillment_choices where mode='remote_shipping'),'deleted delivery choice disappears from recipient settings without removing orders');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000095',true);
+insert into public.fulfillment_choices(name,mode,is_active) values('New shipping choice','remote_shipping',true);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000096',true);
+do $$ begin
+ begin perform public.create_merch_order_v3('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_shipping',null,'+998901234567','Country','City',null,null,null,(select fulfillment_choice_id from public.orders where fulfillment_mode='remote_shipping'));raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'fulfillment_not_available' then raise;end if;end;
+end $$;
+select pg_temp.assert((select count(*)=2 from public.orders) and (select reserved_qty=1 from public.product_variants where sku='CHOICE-ITEM'),'recreating the same mode cannot substitute a deleted choice in a stale UI request');
+select public.create_merch_order_v3('[{"variant_id":"20000000-0000-0000-0000-000000000096","qty":1}]','remote_shipping',null,'+998901234567','Country','City',null,null,null,(select id from public.fulfillment_choices where mode='remote_shipping'));
+select pg_temp.assert(exists(select 1 from public.orders where fulfillment_choice_name='New shipping choice') and exists(select 1 from public.orders where fulfillment_choice_name='Удалённо — отправка'),'new configured choice works while old delivery label stays intact');
+rollback;

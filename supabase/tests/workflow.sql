@@ -57,7 +57,7 @@ do $$ begin
   exception when others then if sqlerrm <> 'product_is_not_available' then raise; end if; end;
 end $$;
 select pg_temp.assert((select count(*)=0 from public.orders),'invalid orders leave no partial rows');
-select public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000001","qty":1}]','courier','Test address','123','Test',true,'Uzbekistan');
+select public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000001","qty":1}]','office','Test address','123','Test',true,'Uzbekistan');
 select pg_temp.assert((select reserved_qty=1 and total_qty=5 from public.product_variants where sku='TEST-SHIRT'),'order reserves stock');
 select pg_temp.assert((select order_number like 'MERCH-%' and is_remote and country='Uzbekistan' from public.orders),'order number and remote fields');
 select pg_temp.assert((select count(*)=1 from public.order_items),'order items readable by owner');
@@ -98,5 +98,5 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select pg_temp.assert((select count(*)=17 from pg_tables where schemaname='public'),'all seventeen tables installed');
+select pg_temp.assert((select count(*)=18 from pg_tables where schemaname='public'),'all eighteen tables including fulfillment choices installed');
 rollback;

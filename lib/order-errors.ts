@@ -1,4 +1,5 @@
 const messages: Record<string, string> = {
+  fulfillment_not_available: 'Этот вариант получения сейчас недоступен. Выберите другой.',
   welcome_office_only: 'Welcome pack можно получить только лично в офисе.',
   single_order_already_received: 'Сотрудник уже получил заказ по разовому доступу. Для новой выдачи администратор должен продлить доступ.',
   not_admin: 'Доступ разрешён только активным администраторам.',

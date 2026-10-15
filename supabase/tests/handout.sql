@@ -26,7 +26,7 @@ insert into public.stock_movements(variant_id,movement_type,qty)
  select id,'income',4 from public.product_variants where sku in ('H-SHIRT','H-BOTTLE');
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000013',true);
-select public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000011","qty":1}]','courier',null,null,null,false,null);
+select public.create_merch_order('[{"variant_id":"20000000-0000-0000-0000-000000000011","qty":1}]','office',null,null,null,false,null);
 select pg_temp.assert((select pickup_code ~ '^[0-9]{20}$' and pickup_code<>order_number and delivery_type='office' from public.orders),'random numeric pickup code, office-only checkout');
 do $$ begin
   begin perform public.admin_issue_order((select pickup_code from public.orders)); raise exception 'MISSING_DENIAL';

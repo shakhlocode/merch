@@ -58,6 +58,7 @@ export type AdminOrder = {
   storage_location: string | null
   pickup_status: string
   handed_to: string | null
+  fulfillment_choice_name?:string|null
   fulfillment_mode:string|null
   legal_entity:string|null
   pickup_office_name:string|null
@@ -230,7 +231,7 @@ export default function AdminOrdersClient({
         items_qty:        String(getTotalQty(order)),
         items:            itemsText,
         comment:          order.comment || '',
-        fulfillment_mode:fulfillmentLabel(order.fulfillment_mode,order.is_remote),
+        fulfillment_mode:(order.fulfillment_choice_name||fulfillmentLabel(order.fulfillment_mode,order.is_remote)),
         legal_entity:order.legal_entity||'',
         visit_from:order.visit_from||'',visit_until:order.visit_until||'',
         admin_comment:    order.admin_comment || '',
@@ -398,7 +399,7 @@ export default function AdminOrdersClient({
                       </div>
 
                       <div className="ao-delivery-cell">
-                        {fulfillmentLabel(order.fulfillment_mode,order.is_remote)}
+                        {(order.fulfillment_choice_name||fulfillmentLabel(order.fulfillment_mode,order.is_remote))}
                       </div>
 
                       <div className="ao-date-cell">
@@ -585,7 +586,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
             <Info label="Отдел"    value={order.department || 'Не указан'} />
             <Info label="Доставка" value={deliveryLabels[order.delivery_type] ?? order.delivery_type} />
             <Info label="Адрес"    value={order.delivery_address || 'Не указан'} />
-            <Info label="Формат"   value={fulfillmentLabel(order.fulfillment_mode,order.is_remote)} />
+            <Info label="Формат"   value={(order.fulfillment_choice_name||fulfillmentLabel(order.fulfillment_mode,order.is_remote))} />
             {order.is_remote && <><Info label="Страна" value={order.country || 'Не указана'} /><Info label="Город" value={order.city || 'Не указан'} /></>}
             {order.fulfillment_mode==='remote_visit'&&<><Info label="Приезд" value={order.visit_from||'—'}/><Info label="Отъезд" value={order.visit_until||'—'}/><span>Напоминание и действия — в этом заказе.</span></>}
           </div>

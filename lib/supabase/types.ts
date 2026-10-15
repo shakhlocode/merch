@@ -59,9 +59,15 @@ export type Database = {
   public: {
     Tables: {
       pickup_offices: {
-        Row: { id: string; name: string; address: string; is_active: boolean; sort: number }
-        Insert: { id?: string; name: string; address?: string; is_active?: boolean; sort?: number }
+        Row: { id: string; name: string; address: string; is_active: boolean; sort: number; deleted_at:string|null }
+        Insert: { id?: string; name: string; address?: string; is_active?: boolean; sort?: number; deleted_at?:string|null }
         Update: Partial<Database['public']['Tables']['pickup_offices']['Insert']>
+        Relationships: never[]
+      }
+      fulfillment_choices: {
+        Row: { id: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active: boolean; sort: number; deleted_at:string|null }
+        Insert: { id?: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active?: boolean; sort?: number; deleted_at?:string|null }
+        Update: Partial<Database['public']['Tables']['fulfillment_choices']['Insert']>
         Relationships: never[]
       }
       order_tasks: {
@@ -307,6 +313,8 @@ export type Database = {
         Row: {
           order_scope: string
           fulfillment_mode: string | null
+          fulfillment_choice_id: string | null
+          fulfillment_choice_name: string | null
           legal_entity: string | null
           pickup_office_id: string | null
           pickup_office_name: string | null
@@ -353,6 +361,8 @@ export type Database = {
         Insert: {
           order_scope?: string
           fulfillment_mode?: string | null
+          fulfillment_choice_id?: string | null
+          fulfillment_choice_name?: string | null
           legal_entity?: string | null
           pickup_office_id?: string | null
           pickup_office_name?: string | null
@@ -538,6 +548,7 @@ export type Database = {
       my_checkout_identity: { Args: Record<string, never>; Returns: { full_name: string; legal_entity: string | null } | null }
       admin_contact_visit: { Args: { p_id: string }; Returns: undefined }
       create_merch_order_v2: { Args: { p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string; order_scope:string } }
+      create_merch_order_v3: { Args: { p_choice_id: string | null; p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string; order_scope:string } }
       create_merch_order: {
         Args: {
           p_items:            { variant_id: string; qty: number }[]

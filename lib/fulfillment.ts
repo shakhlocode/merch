@@ -4,6 +4,15 @@ export type PickupOffice = {
   address: string
   is_active: boolean
   sort: number
+  deleted_at?: string | null
+}
+export type FulfillmentChoice = {
+  id: string
+  name: string
+  mode: 'remote_shipping' | 'remote_visit' | 'placeholder'
+  is_active: boolean
+  sort: number
+  deleted_at?: string | null
 }
 export type FulfillmentMode = 'office' | 'remote_shipping' | 'remote_visit'
 export type PickupDetails = {

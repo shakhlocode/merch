@@ -11,6 +11,7 @@ type CheckoutPayload = {
   items: CheckoutItem[]
   fulfillment_mode?: string
   pickup_office_id?: string
+  fulfillment_choice_id?: string
   city?: string
   visit_from?: string
   visit_until?: string
@@ -121,7 +122,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'one_variant_per_product_only' }, { status: 400 })
     }
 
-    const { data, error } = await supabase.rpc('create_merch_order_v2', {
+    const { data, error } = await supabase.rpc('create_merch_order_v3', {
+      p_choice_id: body.fulfillment_choice_id || null,
       p_items: items,
       p_mode: body.fulfillment_mode ?? '',
       p_office_id: body.pickup_office_id || null,

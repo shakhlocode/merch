@@ -29,6 +29,7 @@ type Order = {
   id: string
   order_number: string
   order_scope:string
+  fulfillment_choice_name: string|null
   fulfillment_mode: string|null
   legal_entity: string|null
   visit_from:string|null
@@ -111,7 +112,7 @@ export default async function OrdersPage() {
   const { data: rawOrders, error } = await supabase
     .from('orders')
     .select(`
-      id, order_number, order_scope, fulfillment_mode, legal_entity, visit_from, visit_until, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
+      id, order_number, order_scope, fulfillment_mode, fulfillment_choice_name, legal_entity, visit_from, visit_until, status, is_remote, pickup_code, remote_contact_name, received_by_name, delivery_type, delivery_address,
       full_name, phone, email, city, department,
       comment, admin_comment, tracking_number,
       created_at, confirmed_at, shipped_at, received_at, cancelled_at,
@@ -294,7 +295,7 @@ function OrderCard({ order,message }: { order: Order; message:string }) {
           <p className="order-side-main">
             {isReceived && order.received_at
               ? formatDateShort(order.received_at)
-              : fulfillmentLabel(order.fulfillment_mode,order.is_remote)}
+              : (order.fulfillment_choice_name||fulfillmentLabel(order.fulfillment_mode,order.is_remote))}
           </p>
           <p className="order-side-mute">{order.delivery_address || 'Адрес не указан'}</p>
         </div>

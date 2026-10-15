@@ -43,7 +43,7 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000071'
 update public.pickup_offices set name='Renamed office',address='Changed address',is_active=false where id='60000000-0000-0000-0000-000000000071';
 select pg_temp.assert((select pickup_office_name='Test office' and pickup_office_address='Tashkent Test street' from public.orders where fulfillment_mode='office'),'office renaming preserves existing order snapshot');
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000072',true);
-select pg_temp.assert(not exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000071'),'inactive office is hidden from recipients');
+select pg_temp.assert(exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000071' and not is_active),'inactive office remains visible but unavailable to recipients');
 do $$ begin
  begin perform public.create_merch_order_v2('[{"variant_id":"20000000-0000-0000-0000-000000000071","qty":1}]','office','60000000-0000-0000-0000-000000000071','+998901234567',null,null,null,null,null);raise exception 'MISSING_DENIAL';exception when others then if sqlerrm<>'Выберите действующий офис получения' then raise; end if;end;
 end $$;

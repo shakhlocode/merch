@@ -8,11 +8,25 @@ export default async function Page() {
   const s = await createClient(),
     a = await requireAdmin(s)
   if (!a.ok) redirect('/login')
-  const [{ data: offices, error }, { data: settings, error: settingsError }] =
-    await Promise.all([
-      s.from('pickup_offices').select('*').order('sort').order('name'),
-      s.from('merch_settings').select('*').eq('id', 1).single(),
-    ])
+  const [
+    { data: offices, error },
+    { data: settings, error: settingsError },
+    { data: choices, error: choicesError },
+  ] = await Promise.all([
+    s
+      .from('pickup_offices')
+      .select('*')
+      .is('deleted_at', null)
+      .order('sort')
+      .order('name'),
+    s.from('merch_settings').select('*').eq('id', 1).single(),
+    s
+      .from('fulfillment_choices')
+      .select('*')
+      .is('deleted_at', null)
+      .order('sort')
+      .order('name'),
+  ])
   const content = Object.fromEntries(
     Object.keys(defaultStoreContent).map((k) => [
       k,
@@ -22,10 +36,14 @@ export default async function Page() {
   ) as StoreContent
   return (
     <AdminShell adminEmail={a.user.email || ''} title="Тексты и настройки">
-      {error || settingsError ? (
+      {error || settingsError || choicesError ? (
         <p role="alert">Не удалось загрузить настройки. Обновите страницу.</p>
       ) : (
-        <InterfaceSettings offices={offices || []} content={content} />
+        <InterfaceSettings
+          offices={offices || []}
+          choices={choices || []}
+          content={content}
+        />
       )}
     </AdminShell>
   )
