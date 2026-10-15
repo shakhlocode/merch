@@ -90,7 +90,8 @@ export default function IssueClient() {
   return <section className="issue-panel">
     <h2>Сканировать и выдать заказ целиком</h2>
     <p>После сканирования заказ со статусом «Можно забирать» сразу отмечается «Получен». Повторный скан покажет дату и администратора первой выдачи.</p>
-    <p>Откройте эту страницу и сканируйте штрихкод в поле ниже. Подойдут USB- и Bluetooth-сканеры, которые вводят код как клавиатура. Отправлять Enter необязательно.</p>
+    <p>Для сканирования телефоном откройте эту страницу на телефоне, войдите как администратор и нажмите «Сканировать через камеру». На ноутбуке кнопка включит камеру ноутбука.</p>
+    <p>Если используете USB- или Bluetooth-сканер, подключите его к устройству и сканируйте штрихкод в поле ниже. Нажимать Enter необязательно.</p>
     <label>
       <input type="checkbox" checked={autoIssue} disabled={busy || camera} onChange={e => {
         cancelPendingScan()
@@ -106,7 +107,7 @@ export default function IssueClient() {
       <button className="ao-save-btn" disabled={busy || !/^\d{20}$/.test(code.trim())}>{busy ? 'Проверяем…' : 'Выдать по коду'}</button>
     </form>
     <button type="button" className="ao-light-btn" disabled={busy} onClick={() => { cancelPendingScan(); setCode(''); setError(null); setCamera(!camera) }}>
-      {camera ? 'Остановить камеру' : 'Сканировать камерой телефона'}
+      {camera ? 'Остановить камеру' : 'Сканировать через камеру'}
     </button>
     <video ref={video} muted playsInline hidden={!camera} className="issue-video" />
     {error && <div role="alert" className="ao-error">{error}</div>}
