@@ -34,6 +34,14 @@ select pg_temp.assert(public.browser_session_valid() and public.has_system_acces
 reset role;
 select pg_temp.assert((select invitation_user_id='a0000000-0000-4000-8000-000000000002' and invitation_one_order and access_mode='one_order' and access_used_at is null from public.employee_directory where external_id='RECOVERY-ID'),'recovery does not reset order limit or employee identity');
 select pg_temp.assert((select count(*)=2 from public.employee_audit_log where employee_directory_id='a1000000-0000-4000-8000-000000000001' and action in('browser_access_reset','browser_access_restored')),'both administrator reset and employee recovery are audited');
+insert into public.shop_admins values('i-a0000000-0000-4000-8000-000000000002@guest.merch.invalid','10000000-0000-4000-8000-000000000002');
+set local role authenticated;
+select set_config('request.jwt.claims','{"session_id":"a2000000-0000-4000-8000-000000000001"}',true);
+select pg_temp.assert(not public.is_admin(),'revoked guest session cannot inherit an administrator role assigned later');
+select set_config('request.jwt.claims','{"session_id":"a2000000-0000-4000-8000-000000000002"}',true);
+select pg_temp.assert(public.is_admin(),'fresh recovered session can use a legitimately granted role');
+reset role;
+delete from public.shop_admins where email='i-a0000000-0000-4000-8000-000000000002@guest.merch.invalid';
 update public.employee_directory set access_used_at=now() where external_id='RECOVERY-ID';
 set local role authenticated;
 select set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000001',true);
