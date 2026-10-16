@@ -2,6 +2,7 @@
 
 import { unitFetch } from '@/lib/shop-context'
 
+import OrderLabelsPrint from '@/components/OrderLabelsPrint'
 import OrderContact from '@/components/OrderContact'
 import {activeWorkStatuses,workStatus,workStatusLabel,workStatusLabels,workflowSteps,type WorkStatus} from '@/lib/order-workflow'
 import {fulfillmentLabel} from '@/lib/fulfillment'
@@ -177,6 +178,14 @@ export default function AdminOrdersClient({
     })
   }, [orders, search, sortMode, statusFilter,workFilter,scopeFilter,tasks,showClosed])
 
+  const printOrders = selectedOrders.length > 0
+    ? filteredOrders.filter(order => selectedOrders.includes(order.id))
+    : filteredOrders
+  const sortLabels: Record<SortMode, string> = {
+    date_desc: 'По дате: сначала новые', date_asc: 'По дате: сначала старые',
+    number_desc: 'По номеру: по убыванию', number_asc: 'По номеру: по возрастанию',
+  }
+
   function handleExportCsv() {
     const rows = filteredOrders.map((order) => {
       const itemsText = order.order_items
@@ -281,6 +290,8 @@ export default function AdminOrdersClient({
               </select>
             </label>
 
+            <OrderLabelsPrint orders={printOrders} sort={sortLabels[sortMode]} selected={selectedOrders.length > 0} />
+            {selectedOrders.length > 0 && <button type="button" className="ao-light-btn" onClick={() => setSelectedOrders([])}>Снять выбор ({selectedOrders.length})</button>}
             <button
               type="button"
               className="ao-export-btn"
@@ -308,7 +319,7 @@ export default function AdminOrdersClient({
                   type="checkbox"
                   checked={
                     filteredOrders.length > 0 &&
-                    selectedOrders.length === filteredOrders.length
+                    filteredOrders.every(order => selectedOrders.includes(order.id))
                   }
                   onChange={handleSelectAll}
                 />
