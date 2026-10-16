@@ -3907,7 +3907,9 @@ input:focus, select:focus, textarea:focus {
 .issue-video[hidden] { display: none; }
 .issue-receipt { padding: 20px; margin-top: 20px; border: 2px solid #20a56a; border-radius: 12px; }
 .issue-receipt h3 { font-size: 24px; color: #087946; }
-.order-items-editor { background: #fff; padding: 20px; margin: 16px 0; border-radius: 14px; }
+.order-items-editor { background: #fff; padding: 20px; margin: 16px 0; border-radius: 14px; min-width: 0; }
+.order-items-editor .order-edit-row > span { overflow-wrap: anywhere; }
+.order-items-editor .order-edit-row > select { max-width: 100%; }
 .order-edit-row { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
 .order-edit-row > span, .order-edit-row > select { flex: 1; min-width: 0; }
 @media (max-width: 640px) {
