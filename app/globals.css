@@ -3365,6 +3365,12 @@ input:focus, select:focus, textarea:focus {
 .ao-detail-panel        { min-width: 1120px; padding: 18px; background: #fbfaff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
 .ao-detail-grid         { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: 14px; }
 .ao-detail-card         { border-radius: 16px; border: 1px solid var(--border); background: #fff; padding: 16px; }
+.ao-detail-panel .ao-detail-card,
+.ao-detail-panel .ao-manage-panel,
+.ao-detail-panel .ao-handout-card {
+  border: 2px solid #c8b5e8;
+  box-shadow: 0 3px 12px rgba(54, 28, 93, 0.07);
+}
 .ao-card-head           { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
 .ao-card-title          { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
 .ao-card-hint           { color: var(--inkMute); font-size: 13px; font-weight: 800; }
