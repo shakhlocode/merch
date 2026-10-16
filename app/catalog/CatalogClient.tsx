@@ -103,7 +103,7 @@ export default function CatalogClient({
   const [cart, setCart] = useState<CartItem[]>([])
 
   /* Checkout form */
-  const [pickup,setPickup]=useState<PickupDetails>({mode:'office',officeId:'',phone:checkoutDefaults.phone,country:'',city:'',comment:'',visitFrom:'',visitUntil:''})
+  const [pickup,setPickup]=useState<PickupDetails>({mode:'office',pvzCode:'',officeId:'',phone:checkoutDefaults.phone,country:'',city:'',comment:'',visitFrom:'',visitUntil:''})
   const [responsible,setResponsible]=useState<OrderContactData|null>(null)
   const [successCode,setSuccessCode]=useState<string|null>(null)
   const [successOrderNumber,setSuccessOrderNumber]=useState<string|undefined>()
@@ -206,7 +206,8 @@ export default function CatalogClient({
           items:            cart.map(item => ({ variant_id: item.variant.id, qty: 1 })),
           fulfillment_mode: pickup.mode,
           fulfillment_choice_id: pickup.mode==='office'?null:choices.find(c=>c.mode===pickup.mode)?.id,
-          pickup_office_id: pickup.mode==='remote_shipping'?null:pickup.officeId,
+          pickup_office_id: ['remote_shipping','pvz'].includes(pickup.mode)?null:pickup.officeId,
+          pvz_code: pickup.mode==='pvz'?pickup.pvzCode:null,
           phone: pickup.phone,
           country: pickup.mode==='remote_shipping'?pickup.country:null,
           city: pickup.mode==='remote_shipping'?pickup.city:null,
@@ -660,6 +661,8 @@ function getInitials(fullName: string | null, email: string | null): string {
 }
 
 function getCheckoutErrorMessage(error: string): string {
+  if (error.includes('pvz_identifier_only')) return 'Получение в своём ПВЗ доступно только по приглашению с идентификатором.'
+  if (error.includes('invalid_pvz_code')) return 'Укажите код своего ПВЗ — до 80 символов.'
   if (error.includes('fulfillment_not_available')) return 'Этот вариант получения сейчас недоступен. Обновите страницу и выберите другой.'
   if (error.includes('welcome_office_only')) return 'Welcome pack можно получить только лично в офисе. Выберите офис получения.'
   if (error.includes('single_order_pending')) return 'У вас уже есть заказ. Разовый доступ позволяет получить только один заказ.'

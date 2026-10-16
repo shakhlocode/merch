@@ -67,8 +67,8 @@ export type Database = {
       }
       fulfillment_choices: {
         Row: {
-          unit_id: string; id: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active: boolean; sort: number; deleted_at:string|null }
-        Insert: { id?: string; name: string; mode: 'remote_shipping'|'remote_visit'|'placeholder'; is_active?: boolean; sort?: number; deleted_at?:string|null }
+          unit_id: string; id: string; name: string; mode: 'remote_shipping'|'remote_visit'|'pvz'|'placeholder'; is_active: boolean; sort: number; deleted_at:string|null }
+        Insert: { id?: string; name: string; mode: 'remote_shipping'|'remote_visit'|'pvz'|'placeholder'; is_active?: boolean; sort?: number; deleted_at?:string|null }
         Update: Partial<Database['public']['Tables']['fulfillment_choices']['Insert']>
         Relationships: never[]
       }
@@ -333,6 +333,7 @@ export type Database = {
         Row: {
           unit_id: string
           order_scope: string
+          pvz_code: string | null
           fulfillment_mode: string | null
           fulfillment_choice_id: string | null
           fulfillment_choice_name: string | null
@@ -382,6 +383,7 @@ export type Database = {
         Insert: {
           unit_id?: string
           order_scope?: string
+          pvz_code?: string | null
           fulfillment_mode?: string | null
           fulfillment_choice_id?: string | null
           fulfillment_choice_name?: string | null
@@ -444,6 +446,7 @@ export type Database = {
           welcome_shipping_message: string
           welcome_visit_message: string
 
+          pvz_message: string
           pickup_message: string
 
           id:               number
@@ -462,6 +465,7 @@ export type Database = {
           welcome_shipping_message?: string
           welcome_visit_message?: string
 
+          pvz_message?: string
           pickup_message?: string
 
           id?:               number
@@ -590,6 +594,8 @@ export type Database = {
       my_checkout_identity: { Args: Record<string, never>; Returns: { full_name: string; legal_entity: string | null } | null }
       admin_contact_visit: { Args: { p_id: string }; Returns: undefined }
       create_merch_order_v2: { Args: { p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string; order_scope:string } }
+      can_use_pvz: { Args: Record<string, never>; Returns: boolean }
+      create_merch_order_v4: { Args: Database['public']['Functions']['create_merch_order_v3']['Args'] & { p_pvz_code: string | null }; Returns: Database['public']['Functions']['create_merch_order_v3']['Returns'] }
       create_merch_order_v3: { Args: { p_choice_id: string | null; p_items: unknown; p_mode: string; p_office_id: string | null; p_phone: string; p_country: string | null; p_city: string | null; p_comment: string | null; p_visit_from: string | null; p_visit_until: string | null }; Returns: { id: string; order_number: string; pickup_code: string | null; fulfillment_mode: string; pickup_message: string; order_scope:string } }
       create_merch_order: {
         Args: {

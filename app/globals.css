@@ -4193,4 +4193,3 @@ input:focus, select:focus, textarea:focus {
 .order-labels-dialog { width: min(980px, calc(100vw - 28px)); }
 
 .receipt-qr-image svg { display: block; width: 100%; height: auto; }
-.receipt-qr-notice { margin: 8px 0; font-size: 12px; line-height: 1.4; color: var(--inkMute); text-align: center; }

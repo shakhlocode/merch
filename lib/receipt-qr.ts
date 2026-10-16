@@ -1,6 +1,5 @@
 import QRCode from 'qrcode'
 
-export const QR_RECEIPT_NOTICE = 'Не передавайте QR-код другим. По нему можно получить заказ только один раз.'
 export function receiptQrSvg(value: string) {
   if (!/^\d{20}$/.test(value)) throw new Error('Некорректный код получения заказа')
   const qr = QRCode.create(value, { errorCorrectionLevel: 'M' }), size = qr.modules.size, margin = 4

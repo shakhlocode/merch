@@ -1,7 +1,7 @@
 'use client'
 
 import { useContext, useRef, useState } from 'react'
-import { receiptQrSvg, QR_RECEIPT_NOTICE } from '@/lib/receipt-qr'
+import { receiptQrSvg } from '@/lib/receipt-qr'
 import ActionDialog from '@/components/ActionDialog'
 import { ShopContextValue } from '@/components/ShopProvider'
 import { displayColor, displaySize } from '@/lib/variant-labels'
@@ -28,8 +28,7 @@ function labelDocument(orders: AdminOrder[], sort: string, unit: string, perPage
         <strong class="recipient">${escape(order.full_name || 'ФИО не указано')}</strong>
         <div class="destination">${escape(order.delivery_address || order.pickup_office_name || order.country || 'Место не указано')}${order.storage_location ? ' · Где лежит: ' + escape(order.storage_location) : ''}</div>
         <ul>${order.order_items.map(item => `<li>${escape(item.product_name)} · ${escape(displaySize(item.size))} · ${escape(displayColor(item.color))} · <b>${item.qty} шт.</b></li>`).join('')}</ul>
-        <div class="barcode">${barcode || `<span>${order.is_remote ? 'Удалённая отправка — без кода выдачи' : 'Код получения отсутствует'}</span>`}</div>
-        ${barcode ? `<p class="qr-notice">${QR_RECEIPT_NOTICE}</p>` : ''}
+        <div class="barcode">${barcode || `<span>${order.fulfillment_mode === 'pvz' ? 'Доставка в ПВЗ — без кода выдачи' : order.is_remote ? 'Удалённая отправка — без кода выдачи' : 'Код получения отсутствует'}</span>`}</div>
         <div class="status">${escape(workStatusLabel(order))} · ${escape(unit)}</div>
       </article>`
     }).join('')
@@ -44,7 +43,7 @@ function labelDocument(orders: AdminOrder[], sort: string, unit: string, perPage
     .position{font-size:7.5pt;color:#444;margin-bottom:1mm}.number{font-size:12pt}.recipient{font-size:11pt;margin:1mm 0}.destination{font-size:8pt;line-height:1.2}
     ul{margin:1.5mm 0;padding-left:3.5mm;font-size:8pt;line-height:1.25}li+li{margin-top:0.5mm}
     .barcode{margin-top:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;min-height:24mm;font-size:8pt}.barcode svg{width:24mm;max-width:100%;height:24mm}
-    .qr-notice{margin:0;text-align:center;font-size:7pt;line-height:1.15}.status{font-size:7.5pt;text-align:center;margin-top:0.5mm}
+    .status{font-size:7.5pt;text-align:center;margin-top:0.5mm}
     @media print{body{background:white}.sheet{margin:0;box-shadow:none}}
   </style></head><body>${sheets}</body></html>`
 }

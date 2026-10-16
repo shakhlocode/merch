@@ -81,7 +81,7 @@ export default async function AdminOrdersPage() {
       department,
       comment,
       admin_comment,
-      tracking_number,
+      tracking_number, pvz_code,
       assigned_to,
       storage_location,
       pickup_status,

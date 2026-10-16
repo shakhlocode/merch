@@ -119,7 +119,7 @@ export default function FulfillmentForm({
             </select>
           </label>
           <p className="pickup-address">
-            {value.mode === 'remote_shipping'
+            {value.mode === 'pvz' ? 'Укажите код своего ПВЗ. Мы свяжемся с вами и согласуем доставку мерча.' : value.mode === 'remote_shipping'
               ? 'Работаю удалённо. Отправьте мерч в мою страну.'
               : value.mode === 'remote_visit'
                 ? 'Работаю удалённо, но смогу забрать мерч во время визита в Ташкент.'
@@ -129,7 +129,7 @@ export default function FulfillmentForm({
           </p>
         </>
       )}
-      {value.mode === 'office' && (
+      {(value.mode === 'office' || value.mode === 'pvz') && (
         <div className="pickup-identity">
           <p>
             <b>ФИО</b>
@@ -143,6 +143,7 @@ export default function FulfillmentForm({
           </p>
         </div>
       )}
+      {value.mode === 'pvz' && <label className="form-label">Код ПВЗ<input required maxLength={80} className="form-input" autoComplete="off" value={value.pvzCode} onChange={e => update('pvzCode', e.target.value)} placeholder="Введите код своего ПВЗ" /></label>}
       {value.mode === 'remote_visit' && (
         <>
           <label className="form-label">

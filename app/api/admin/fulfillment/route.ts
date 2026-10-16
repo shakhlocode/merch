@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       typeof b.name !== 'string' ||
       !b.name.trim() ||
       b.name.length > 120 ||
-      !['remote_shipping', 'remote_visit', 'placeholder'].includes(b.mode) ||
+      !['remote_shipping', 'remote_visit', 'pvz', 'placeholder'].includes(b.mode) ||
       typeof b.is_active !== 'boolean'
     )
       return NextResponse.json(

@@ -12,7 +12,7 @@ insert into public.stock_movements(variant_id,movement_type,qty) values('2000000
 insert into public.pickup_offices(id,name,address,is_active) values('60000000-0000-0000-0000-000000000096','Old office','Old address',true),('60000000-0000-0000-0000-000000000097','Inactive office','Inactive address',false);
 set local role authenticated;
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000096',true);
-select pg_temp.assert(exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000097' and not is_active) and (select count(*)=2 from public.fulfillment_choices where mode='placeholder' and not is_active),'inactive offices and PVZ/courier placeholders are readable for grey disabled choices');
+select pg_temp.assert(exists(select 1 from public.pickup_offices where id='60000000-0000-0000-0000-000000000097' and not is_active) and (select count(*)=1 from public.fulfillment_choices where mode='placeholder' and not is_active),'inactive offices and remaining courier placeholder are readable for grey disabled choices');
 select pg_temp.assert(not has_table_privilege('anon','public.fulfillment_choices','SELECT') and not has_table_privilege('authenticated','public.fulfillment_choices','DELETE'),'anonymous clients cannot read settings and API roles cannot physically delete referenced choices');
 update public.pickup_offices set is_active=true where id='60000000-0000-0000-0000-000000000097';
 update public.fulfillment_choices set is_active=false where mode='remote_shipping';

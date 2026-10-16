@@ -83,6 +83,8 @@ export default async function ShopPage({ scope }: { scope: StoreScope }) {
     ])
   if(officesError||choicesError)throw new Error('Не удалось загрузить варианты получения. Обновите страницу.')
 
+  const { data: pvzAllowed } = await supabase.rpc('can_use_pvz', {})
+
   const defaultDeliveryAddress = [employee?.city, employee?.office]
     .filter(Boolean)
     .join(', ')
@@ -175,7 +177,7 @@ export default async function ShopPage({ scope }: { scope: StoreScope }) {
       }
       products={products}
       offices={offices ?? []}
-      choices={choices ?? []}
+      choices={(choices ?? []).filter(choice => choice.mode !== 'pvz' || (pvzAllowed && scope === 'catalog'))}
       identity={{
         full_name: identity?.full_name ?? employee?.full_name ?? null,
         legal_entity: identity?.legal_entity ?? null,

@@ -4,6 +4,7 @@ export const defaultStoreContent = {
     'До 3 уникальных товаров.\nПо 1 штуке каждого товара.\nОдин товар — один размер и цвет.\nПолучение — в офисе. Для удалённых сотрудников — по согласованию.',
   welcome_rules:
     'Выберите до 3 товаров для своего Welcome pack.\nПо 1 штуке каждого товара.\nВыберите нужный размер и цвет.\nПолучение — только лично в офисе. Выберите офис при оформлении.',
+  pvz_message: 'Спасибо, заказ принят! Мы свяжемся с вами и доставим мерч в ваш ПВЗ. Если мерч не пришёл в течение двух недель, свяжитесь с ответственным по заказу — контакты указаны ниже.',
   pickup_message:
     'Спасибо за заказ! Дату, время и место раздачи объявим во внутрикоме — следите за обновлениями.',
   shipping_message:
@@ -19,6 +20,7 @@ export const defaultStoreContent = {
 }
 export type StoreContent = typeof defaultStoreContent
 export const contentLabels: Record<keyof StoreContent, string> = {
+  pvz_message: 'Каталог — ПВЗ: сообщение и контакт при задержке больше двух недель',
   catalog_rules: 'Правила основного каталога',
   welcome_rules: 'Правила Welcome pack',
   pickup_message: 'Каталог — получение в офисе',
@@ -34,6 +36,7 @@ export function orderMessage(
   mode: string | null,
   remote = false
 ) {
+  if (mode === 'pvz') return content.pvz_message
   const prefix = scope === 'welcome' ? 'welcome_' : ''
   const kind =
     mode === 'remote_visit'

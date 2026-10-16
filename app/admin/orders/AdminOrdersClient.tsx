@@ -13,7 +13,7 @@ import AdminShell from '@/components/AdminShell'
 import OrderQRCode from '@/components/OrderQRCode'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { receiptQrSvg, QR_RECEIPT_NOTICE } from '@/lib/receipt-qr'
+import { receiptQrSvg } from '@/lib/receipt-qr'
 import Link from '@/components/ShopLink'
 import OrderItemsEditor, { type EditableVariant } from '@/components/OrderItemsEditor'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
@@ -48,6 +48,7 @@ export type AdminOrder = {
   department: string | null
   comment: string | null
   admin_comment: string | null
+  pvz_code: string | null
   tracking_number: string | null
   assigned_to: string | null
   storage_location: string | null
@@ -219,6 +220,7 @@ export default function AdminOrdersClient({
         legal_entity:order.legal_entity||'',
         visit_from:order.visit_from||'',visit_until:order.visit_until||'',
         admin_comment:    order.admin_comment || '',
+        pvz_code: order.pvz_code || '',
         tracking_number:  order.tracking_number || '',
       }
     })
@@ -549,7 +551,6 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         <ul>${itemsHtml}</ul>
         <div class="loc">Где лежит: <b>${escapeHtml(storageLocation || '—')}</b></div>
         ${barcode}
-        ${barcode ? `<p>${escapeHtml(QR_RECEIPT_NOTICE)}</p>` : ''}
       </div>
       <button onclick="window.print()">Печать</button>
       </body></html>`)
@@ -574,8 +575,9 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
             <Info label="Отдел"    value={order.department || 'Не указан'} />
             <Info label="Доставка" value={deliveryLabels[order.delivery_type] ?? order.delivery_type} />
             <Info label="Адрес"    value={order.delivery_address || 'Не указан'} />
+            {order.fulfillment_mode==='pvz'&&<Info label="Код ПВЗ" value={order.pvz_code||'Не указан'}/>}
             <Info label="Формат"   value={(order.fulfillment_choice_name||fulfillmentLabel(order.fulfillment_mode,order.is_remote))} />
-            {order.is_remote && <><Info label="Страна" value={order.country || 'Не указана'} /><Info label="Город" value={order.city || 'Не указан'} /></>}
+            {order.is_remote && order.fulfillment_mode!=='pvz' && <><Info label="Страна" value={order.country || 'Не указана'} /><Info label="Город" value={order.city || 'Не указан'} /></>}
             {order.fulfillment_mode==='remote_visit'&&<><Info label="Приезд" value={order.visit_from||'—'}/><Info label="Отъезд" value={order.visit_until||'—'}/><span>Напоминание и действия — в этом заказе.</span></>}
           </div>
           {order.comment && (
@@ -643,7 +645,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
             </select>
           </label>
 
-          {order.is_remote && <label className="ao-label">
+          {order.is_remote && order.fulfillment_mode!=='pvz' && <label className="ao-label">
             Трек-номер
             <input
               type="text"
@@ -734,7 +736,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           </button>
         </div>
       </div>}
-      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора в управлении заказом'}. QR-код не выдаётся.</p>}
+      {order.is_remote && <p className="ao-manage-text">{order.fulfillment_mode==='pvz'?'Доставка в ПВЗ.':'Удалённый заказ.'} Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора в управлении заказом'}. QR-код не выдаётся.</p>}
       {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по QR-коду</Link>}
       {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
 

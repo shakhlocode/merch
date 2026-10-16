@@ -7,6 +7,7 @@ type CheckoutItem = {
 }
 
 type CheckoutPayload = {
+  pvz_code?: string
   shop_scope?: string
   items: CheckoutItem[]
   fulfillment_mode?: string
@@ -122,7 +123,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'one_variant_per_product_only' }, { status: 400 })
     }
 
-    const { data, error } = await supabase.rpc('create_merch_order_v3', {
+    const { data, error } = await supabase.rpc('create_merch_order_v4', {
+      p_pvz_code: body.pvz_code || null,
       p_choice_id: body.fulfillment_choice_id || null,
       p_items: items,
       p_mode: body.fulfillment_mode ?? '',
