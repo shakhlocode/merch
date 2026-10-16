@@ -74,9 +74,9 @@ export default function IssueClient() {
       try {
         const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([import('@zxing/browser'), import('@zxing/library')])
         if (disposed || !video.current) return
-        const reader = new BrowserMultiFormatReader(new Map([[DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]]]))
-        controls = await reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, video.current,
-          result => { if (result && !disposed) { disposed = true; controls?.stop(); void issue(result.getText()) } })
+        const reader = new BrowserMultiFormatReader(new Map([[DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]]]))
+        controls = await reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }, video.current,
+          result => { if (result && /^\d{20}$/.test(result.getText()) && !disposed) { disposed = true; controls?.stop(); void issue(result.getText()) } })
         if (disposed) controls.stop()
       } catch {
         if (!disposed) { setError('Камера недоступна. Разрешите доступ к камере или используйте сканер / ручной ввод.'); setCamera(false) }
@@ -91,7 +91,7 @@ export default function IssueClient() {
     <h2>Сканировать и выдать заказ целиком</h2>
     <p>После сканирования заказ со статусом «Можно забирать» сразу отмечается «Получен». Повторный скан покажет дату и администратора первой выдачи.</p>
     <p>Для сканирования телефоном откройте эту страницу на телефоне, войдите как администратор и нажмите «Сканировать через камеру». На ноутбуке кнопка включит камеру ноутбука.</p>
-    <p>Если используете USB- или Bluetooth-сканер, подключите его к устройству и сканируйте штрихкод в поле ниже. Нажимать Enter необязательно.</p>
+    <p>Для отдельного USB- или Bluetooth-сканера нужна поддержка QR-кодов (2D). Подключите его к устройству и сканируйте код в поле ниже. Нажимать Enter необязательно.</p>
     <label>
       <input type="checkbox" checked={autoIssue} disabled={busy || camera} onChange={e => {
         cancelPendingScan()

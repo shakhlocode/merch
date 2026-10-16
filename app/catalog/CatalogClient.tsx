@@ -8,7 +8,7 @@ import OrderContact from '@/components/OrderContact'
 import type { OrderContactData } from '@/lib/order-workflow'
 
 import FulfillmentForm from '@/components/FulfillmentForm'
-import OrderBarcode from '@/components/OrderBarcode'
+import OrderQRCode from '@/components/OrderQRCode'
 import {defaultStoreContent,type StoreScope} from '@/lib/store-content'
 import type { PickupDetails,PickupOffice,FulfillmentChoice } from '@/lib/fulfillment'
 import AppNav from '@/components/AppNav'
@@ -582,7 +582,7 @@ function CheckoutSuccessCard({ message,code,contact,orderNumber }: { message: st
           Мы сохранили вашу заявку. Статус обработки можно отслеживать в разделе «Мои заказы».
         </p>
         <OrderContact contact={contact}/>
-        {code && <OrderBarcode value={code} size={260} orderNumber={orderNumber} downloadable/>}
+        {code && <OrderQRCode value={code} size={260} orderNumber={orderNumber} downloadable/>}
         <div className="confirm-actions">
           <ShopAnchor href="/orders" className="confirm-primary-link">Перейти в мои заказы</ShopAnchor>
           <ShopAnchor href="#catalog-grid" className="confirm-ghost-link">Продолжить выбор</ShopAnchor>

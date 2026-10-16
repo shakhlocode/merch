@@ -123,7 +123,7 @@ export type Database = {
       }
       employee_invitations: {
         Row: {
-          unit_id: string; store_scope: string; id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
+          recovery_user_id: string | null; unit_id: string; store_scope: string; id: string; employee_directory_id: string; channel: string; token_hash: string; code_hash: string; expires_at: string; created_at: string; created_by: string | null; claimed_at: string | null; claimed_by: string | null; revoked_at: string | null; failed_attempts: number; delivery_status: string; delivery_started_at: string | null; delivery_error: string | null }
         Insert: never
         Update: { delivery_status?: string; delivery_started_at?: string | null; delivery_error?: string | null }
         Relationships: never[]
@@ -560,6 +560,7 @@ export type Database = {
       admin_stock_report: { Args: {p_query?:string}; Returns: unknown }
       admin_handout_report: { Args: {p_from:string;p_until:string;p_scope?:string;p_mode?:string;p_query?:string}; Returns: unknown }
       order_responsible_contacts: { Args: {p_order_ids:string[]}; Returns:{order_id:string;full_name:string;email:string;phone:string|null}[] }
+      admin_recover_browser_access: { Args: { p_employee_id: string; p_id: string; p_token_hash: string; p_code_hash: string }; Returns: { id: string; user_id: string; store_scope: string } }
       admin_create_invitation: { Args: { p_id: string; p_employee_id: string; p_token_hash: string; p_code_hash: string; p_channel: string; p_scope?: string }; Returns: { id: string; expires_at: string; email: string; full_name: string; external_id: string | null } }
       check_invitation_code: { Args: { p_token_hash: string; p_code_hash: string }; Returns: { ok: boolean; id?: string } }
       claim_invitation: { Args: { p_id: string; p_user_id: string; p_code_hash: string | null }; Returns: { ok: boolean; next: string } }

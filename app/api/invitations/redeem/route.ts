@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Fetch only on the server, then let the database lock, rate-limit and validate.
     const { data: record } = await service
       .from('employee_invitations')
-      .select('id')
+      .select('id,recovery_user_id')
       .eq('token_hash', tokenHash)
       .maybeSingle()
     if (!record)
@@ -43,11 +43,17 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       )
+    let loginEmail = 'i-' + record.id + '@guest.merch.invalid'
+    if (record.recovery_user_id) {
+      const { data: existing, error } = await service.auth.admin.getUserById(record.recovery_user_id)
+      if (error || !existing.user.email) throw new Error('Аккаунт недоступен. Обратитесь к администратору.')
+      loginEmail = existing.user.email
+    }
     // Isolated auth keeps provisional credentials off the response until the claim wins.
     const { data: link, error: linkError } =
       await service.auth.admin.generateLink({
         type: 'magiclink',
-        email: 'i-' + record.id + '@guest.merch.invalid',
+        email: loginEmail,
       })
     if (linkError)
       throw new Error('Не удалось подготовить вход. Повторите попытку.')

@@ -6,7 +6,7 @@ import { displayColor, displaySize } from '@/lib/variant-labels'
 import {fulfillmentLabel,DEFAULT_PICKUP_MESSAGE} from '@/lib/fulfillment'
 import { requireSystemAccess } from '@/lib/system-access'
 import AppNav from '@/components/AppNav'
-import OrderBarcode from '@/components/OrderBarcode'
+import OrderQRCode from '@/components/OrderQRCode'
 import Link from '@/components/ShopLink'
 import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
@@ -352,13 +352,13 @@ function OrderCard({ order,message,contact }: { order: Order; message:string;con
       {/* ── Pickup barcode ── */}
       {!isRejected && !order.is_remote && order.pickup_code && (
         <div className="order-pickup">
-          <OrderBarcode value={order.pickup_code} size={320} orderNumber={order.order_number} downloadable />
+          <OrderQRCode value={order.pickup_code} size={320} orderNumber={order.order_number} downloadable />
           <div className="order-pickup-text">
             <b>Код для получения: <span className="order-pickup-num">#{order.order_number}</span></b>
             <span>
               {isReceived
                 ? 'Заказ уже выдали.'
-                : 'Покажите штрихкод при получении. Выдача доступна после статуса «Можно забирать».'}
+                : 'Покажите QR-код при получении. Выдача доступна после статуса «Можно забирать».'}
             </span>
           </div>
         </div>

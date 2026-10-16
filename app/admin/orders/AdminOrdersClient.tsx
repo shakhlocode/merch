@@ -10,10 +10,10 @@ import {orderAction,type VisitReminder} from '@/lib/order-attention'
 import {tashkentToday} from '@/lib/fulfillment'
 import OrderNextAction from '@/components/OrderNextAction'
 import AdminShell from '@/components/AdminShell'
-import OrderBarcode from '@/components/OrderBarcode'
+import OrderQRCode from '@/components/OrderQRCode'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import JsBarcode from 'jsbarcode'
+import { receiptQrSvg, QR_RECEIPT_NOTICE } from '@/lib/receipt-qr'
 import Link from '@/components/ShopLink'
 import OrderItemsEditor, { type EditableVariant } from '@/components/OrderItemsEditor'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
@@ -519,9 +519,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
   async function handlePrintLabel() {
     let barcode = ''
     if (order.pickup_code && !order.is_remote) {
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-      JsBarcode(svg, order.pickup_code, { format: 'CODE128', width: 2, height: 70, margin: 16 })
-      barcode = new XMLSerializer().serializeToString(svg)
+      barcode = receiptQrSvg(order.pickup_code)
     }
 
     const itemsHtml = order.order_items
@@ -540,7 +538,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         .sec{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#6b6585;margin-top:10px}
         ul{margin:6px 0;padding-left:18px;font-size:13px}
         .loc{margin-top:8px;font-size:15px}
-        img{display:block;margin:14px auto 0}
+        svg{display:block;width:42mm;height:42mm;margin:10px auto}
         button{margin-top:16px;width:100%;padding:11px;border:0;border-radius:10px;background:#1f1238;color:#fff;font-weight:700;cursor:pointer}
         @media print{button{display:none}}
       </style></head><body>
@@ -551,6 +549,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         <ul>${itemsHtml}</ul>
         <div class="loc">Где лежит: <b>${escapeHtml(storageLocation || '—')}</b></div>
         ${barcode}
+        ${barcode ? `<p>${escapeHtml(QR_RECEIPT_NOTICE)}</p>` : ''}
       </div>
       <button onclick="window.print()">Печать</button>
       </body></html>`)
@@ -719,10 +718,10 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         </div>
       </div>
 
-      {/* Выдача — штрихкод и наклейка */}
+      {/* Выдача — QR-код и наклейка */}
       {!order.is_remote && order.pickup_code && <div className="ao-handout-card">
         <div className="ao-handout-qr">
-          <OrderBarcode value={order.pickup_code} size={320} />
+          <OrderQRCode value={order.pickup_code} size={320} />
           <span className="ao-handout-num">#{order.order_number}</span>
         </div>
         <div className="ao-handout-body">
@@ -735,8 +734,8 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           </button>
         </div>
       </div>}
-      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора в управлении заказом'}. Штрихкод не выдаётся.</p>}
-      {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
+      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора в управлении заказом'}. QR-код не выдаётся.</p>}
+      {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по QR-коду</Link>}
       {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
 
       <details className="order-items-editor"><summary>Последние события заказа</summary>

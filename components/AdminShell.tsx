@@ -19,7 +19,7 @@ type AdminShellProps = {
 
 const navItems = [
   { key:'interface',href:'/admin/interface',label:'Тексты и настройки',description:'Правила, сообщения, офисы',icon:'⚙' },
-  { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование Code 128', icon: '▥' },
+  { key: 'issue', href: '/admin/issue', label: 'Выдача', description: 'Сканирование QR-кодов', icon: '▥' },
   { key: 'dashboard', href: '/admin',                   label: 'Дашборд', description: 'Сводка',           icon: '⌂' },
   { key: 'analytics', href: '/admin/analytics', label: 'Аналитика', description: 'Выдачи, остатки и CSV', icon: '▤' },
   { key: 'orders',    href: '/admin/orders',             label: 'Заказы',  description: 'Заявки и статусы', icon: '◇' },

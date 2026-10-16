@@ -99,5 +99,5 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
-select pg_temp.assert((select count(*)=22 from pg_tables where schemaname='public'),'all business tables including unit membership and transfer history installed');
+select pg_temp.assert((select count(*)=23 from pg_tables where schemaname='public'),'all business tables including unit membership, transfer history and browser revocations installed');
 rollback;

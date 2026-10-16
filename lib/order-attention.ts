@@ -23,7 +23,7 @@ export function orderAction(
     return { label: 'Подготовлен — ждём приезда', needsAction: false }
   if (order.status === 'ready')
     return {
-      label: order.is_remote ? 'Отправить мерч' : 'Выдать по штрихкоду',
+      label: order.is_remote ? 'Отправить мерч' : 'Выдать по QR-коду',
       needsAction: true,
     }
   return {
