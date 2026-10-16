@@ -1,3 +1,4 @@
+import ProductImage from '@/components/ProductImage'
 import OrderContact from '@/components/OrderContact'
 import {workStatus,workStatusLabel,workStatusLabels,workflowSteps,type WorkStatus,type OrderContactData} from '@/lib/order-workflow'
 import {defaultStoreContent,orderMessage} from '@/lib/store-content'
@@ -10,7 +11,7 @@ import Link from '@/components/ShopLink'
 import { shopRedirect } from '@/lib/shop-redirect'
 import { createClient } from '@/lib/supabase/server'
 import { needsPasswordSetup } from '@/lib/auth'
-import { decline, getProductLetter } from '@/lib/utils'
+import { decline } from '@/lib/utils'
 import type { DeliveryType, OrderStatus } from '@/lib/supabase/types'
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -21,6 +22,7 @@ type OrderItem = {
   id: string
   product_id?: string | null
   product_name: string
+  image_url?: string | null
   size: string | null
   color: string | null
   sku: string | null
@@ -127,7 +129,15 @@ export default async function OrdersPage() {
     )
   }
 
-  const orders        = (rawOrders ?? []) as Order[]
+  const productIds = [...new Set((rawOrders ?? []).flatMap(order => order.order_items.map(item => item.product_id)).filter((id): id is string => Boolean(id)))]
+  const { data: productPhotos } = productIds.length
+    ? await supabase.from('products').select('id, image_url, images').in('id', productIds)
+    : { data: [] }
+  const photos = new Map((productPhotos ?? []).map(product => [product.id, product.image_url || product.images?.find(Boolean) || null]))
+  const orders = (rawOrders ?? []).map(order => ({
+    ...order,
+    order_items: order.order_items.map(item => ({ ...item, image_url: photos.get(item.product_id) ?? null })),
+  })) as Order[]
   const activeOrders  = orders.filter(o => !['received','cancelled','rejected'].includes(o.status)).length
   const doneOrders    = orders.filter(o => o.status === 'received').length
 
@@ -259,7 +269,11 @@ function OrderCard({ order,message,contact }: { order: Order; message:string;con
         <div className="order-thumbs">
           {items.slice(0, 4).map(item => (
             <div key={item.id} className="order-thumb">
-              {getProductLetter(item.product_name)}
+              {item.image_url ? (
+                <ProductImage src={item.image_url} alt={item.product_name} sizes="64px" className="order-thumb-photo" />
+              ) : (
+                <span role="img" aria-label={`Нет фото: ${item.product_name}`} title={item.product_name}>▧</span>
+              )}
             </div>
           ))}
         </div>

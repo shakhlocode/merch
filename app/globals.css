@@ -1881,6 +1881,8 @@ input:focus, select:focus, textarea:focus {
   max-width: 148px;
 }
 .order-thumb {
+  position: relative;
+  overflow: hidden;
   width: 64px;
   height: 64px;
   border-radius: var(--r-sm);
@@ -1894,6 +1896,7 @@ input:focus, select:focus, textarea:focus {
   font-weight: 800;
   flex-shrink: 0;
 }
+.order-thumb-photo { width: 100%; height: 100%; object-fit: cover; }
 .order-thumb:nth-child(4n+1) { background: linear-gradient(135deg, #f1ebff 0%, #fff 100%); }
 .order-thumb:nth-child(4n+2) { background: linear-gradient(135deg, #ffe7f7 0%, #fff 100%); }
 .order-thumb:nth-child(4n+3) { background: linear-gradient(135deg, #e7f8ff 0%, #fff 100%); }
