@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Передача на проверку ИБ: [архитектура, данные, доступы и известные ограничения](docs/SECURITY_REVIEW.md).
+
 Инструкция для своей копии с восстановленной базой: [docs/SETUP.md](docs/SETUP.md).
 
 Развёрнутый сайт и дальнейшая работа: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
