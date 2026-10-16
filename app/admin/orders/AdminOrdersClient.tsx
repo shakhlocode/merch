@@ -548,7 +548,6 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
 
   return (
     <section className="ao-detail-panel">
-      <OrderNextAction orderId={order.id} status={order.status} remote={order.is_remote} task={task}/>
       <div className="ao-detail-grid">
 
         {/* Получатель */}
@@ -582,6 +581,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           <div className="ao-card-head">
             <h3 className="ao-card-title">Состав заказа</h3>
             <span className="ao-card-hint">{getTotalQty(order)} шт.</span>
+            <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants.filter(v=>!v.placement||v.placement==='both'||v.placement===order.order_scope||order.order_items.some(i=>i.variant_id===v.id))} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
           </div>
           <div className="ao-items-list">
             {order.order_items.map((item, index) => (
@@ -601,29 +601,6 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
 
       </div>
 
-      {/* Выдача — штрихкод и наклейка */}
-      {!order.is_remote && order.pickup_code && <div className="ao-handout-card">
-        <div className="ao-handout-qr">
-          <OrderBarcode value={order.pickup_code} size={320} />
-          <span className="ao-handout-num">#{order.order_number}</span>
-        </div>
-        <div className="ao-handout-body">
-          <h3 className="ao-card-title">Выдача заказа</h3>
-          <p className="ao-manage-text">
-            Сотрудник показывает код при получении. Выдавать можно только заказ со статусом «Можно забирать».
-          </p>
-          <button type="button" className="ao-light-btn" onClick={handlePrintLabel}>
-            🖶 Напечатать наклейку
-          </button>
-        </div>
-      </div>}
-      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора ниже'}. Штрихкод не выдаётся.</p>}
-      {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
-      {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
-      <OrderItemsEditor key={`items-${order.version}`} orderId={order.id} version={order.version} initialIds={order.order_items.map(i => i.variant_id)} variants={variants.filter(v=>!v.placement||v.placement==='both'||v.placement===order.order_scope||order.order_items.some(i=>i.variant_id===v.id))} locked={['shipped','received','cancelled','rejected'].includes(order.status)} />
-      <details className="order-items-editor"><summary>Последние события заказа</summary>
-        {events.map(e => <p key={e.id}>{formatDateTime(e.created_at)} · {{ created: 'Создан', updated: 'Изменён', issued: 'Выдали', items_changed: 'Изменён состав' }[e.action] || e.action}</p>)}
-      </details>
       {/* Управление */}
       <div className="ao-manage-panel">
         <div className="ao-manage-head">
@@ -633,6 +610,7 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
           </p>
         </div>
 
+      <OrderNextAction orderId={order.id} status={order.status} remote={order.is_remote} task={task}/>
         <div className="ao-manage-grid">
           <label className="ao-label">
             Статус
@@ -727,6 +705,31 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
 
         </div>
       </div>
+
+      {/* Выдача — штрихкод и наклейка */}
+      {!order.is_remote && order.pickup_code && <div className="ao-handout-card">
+        <div className="ao-handout-qr">
+          <OrderBarcode value={order.pickup_code} size={320} />
+          <span className="ao-handout-num">#{order.order_number}</span>
+        </div>
+        <div className="ao-handout-body">
+          <h3 className="ao-card-title">Выдача заказа</h3>
+          <p className="ao-manage-text">
+            Сотрудник показывает код при получении. Выдавать можно только заказ со статусом «Можно забирать».
+          </p>
+          <button type="button" className="ao-light-btn" onClick={handlePrintLabel}>
+            🖶 Напечатать наклейку
+          </button>
+        </div>
+      </div>}
+      {order.is_remote && <p className="ao-manage-text">Удалённый заказ. Ответственный свяжется с сотрудником: {admins.find(a=>a.id===order.assigned_to)?.full_name || 'Назначьте администратора в управлении заказом'}. Штрихкод не выдаётся.</p>}
+      {!order.is_remote && <Link href="/admin/issue" className="ao-light-btn">Открыть выдачу по штрихкоду</Link>}
+      {order.received_at && <p>Выдали: {formatDateTime(order.received_at)} · {order.received_by_name || 'Администратор не указан'}</p>}
+
+      <details className="order-items-editor"><summary>Последние события заказа</summary>
+        {events.map(e => <p key={e.id}>{formatDateTime(e.created_at)} · {{ created: 'Создан', updated: 'Изменён', issued: 'Выдали', items_changed: 'Изменён состав' }[e.action] || e.action}</p>)}
+      </details>
+
     </section>
   )
 }

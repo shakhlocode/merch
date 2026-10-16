@@ -1,5 +1,6 @@
 'use client'
 
+import ActionDialog from '@/components/ActionDialog'
 import { unitFetch } from '@/lib/shop-context'
 
 import { useState } from 'react'
@@ -11,6 +12,7 @@ export default function OrderItemsEditor({ orderId, version, initialIds, variant
   orderId: string; version: number; initialIds: string[]; variants: EditableVariant[]; locked: boolean
 }) {
   const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [ids, setIds] = useState(initialIds)
   const [adding, setAdding] = useState('')
   const [busy, setBusy] = useState(false)
@@ -26,9 +28,10 @@ export default function OrderItemsEditor({ orderId, version, initialIds, variant
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Ошибка изменения состава') }
     finally { setBusy(false) }
   }
-  if (locked) return <p>Состав завершённого, отправленного или отменённого заказа зафиксирован.</p>
-  return <div className="order-items-editor">
-    <h3>Изменить состав заказа</h3>
+  return <>
+    <button type="button" className="ao-light-btn" disabled={locked} onClick={() => { setIds(initialIds); setAdding(''); setMessage(null); setOpen(true) }} title={locked ? 'Состав отправленного, полученного или отменённого заказа зафиксирован' : undefined}>Изменить состав</button>
+    {open && <ActionDialog title="Изменить состав заказа" busy={busy} onClose={() => setOpen(false)}>
+    <div className="order-items-editor">
     <p>До трёх разных товаров, по одной единице. Изменение снимает готовность к выдаче.</p>
     {ids.map(id => <div className="order-edit-row" key={id}>
       <span>{variants.find(v => v.id === id)?.label || id}</span>
@@ -44,5 +47,7 @@ export default function OrderItemsEditor({ orderId, version, initialIds, variant
     </div>
     <button type="button" className="ao-save-btn" disabled={busy || ids.length === 0} onClick={save}>{busy ? 'Сохраняем…' : 'Сохранить состав'}</button>
     {message && <p role="status">{message}</p>}
-  </div>
+    </div>
+    </ActionDialog>}
+  </>
 }
