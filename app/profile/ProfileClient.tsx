@@ -2,8 +2,6 @@
 
 import { unitFetch } from '@/lib/shop-context'
 
-import ShopAnchor from '@/components/ShopAnchor'
-
 import { useState } from 'react'
 
 export type EmployeeProfile = {
@@ -72,45 +70,7 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
   return (
     <div className="profile-wrapper">
 
-      {/* ── Hero ───────────────────────────────────────────────────────── */}
-      <div className="profile-hero">
-        <div className="profile-hero-main">
-          <span className="kicker">Личный кабинет</span>
-          <h1 className="display">
-            Профиль сотрудника
-          </h1>
-          <p className="lead">
-            Эти данные используются при оформлении заявки на мерч: телефон,
-            город и офис будут автоматически подставляться в корзину.
-          </p>
-          <div className="profile-hero-actions">
-            <ShopAnchor href="/" className="btn btn-accent btn-md">Выбрать мерч</ShopAnchor>
-            <ShopAnchor href="/orders"  className="btn btn-ghost  btn-md">Мои заказы</ShopAnchor>
-          </div>
-        </div>
-
-        <aside className="profile-card">
-          <div className="profile-avatar">{initials}</div>
-          <div className="profile-name">{fullName || 'Сотрудник Uzum'}</div>
-          <div className="profile-email">{profile.email}</div>
-
-          <div className="profile-completion">
-            <div className="profile-completion-top">
-              <span>Заполнение профиля</span>
-              <b>{completion}%</b>
-            </div>
-            <div className="profile-progress-track">
-              <div className="profile-progress-bar" style={{ width: `${completion}%` }} />
-            </div>
-          </div>
-
-          <span className={`profile-role-badge ${profile.is_admin ? 'admin' : 'employee'}`}>
-            {profile.is_admin ? 'Администратор' : 'Сотрудник'}
-          </span>
-        </aside>
-      </div>
-
-      {/* ── Content grid: form + side ───────────────────────────────────── */}
+      {/* ── Profile form and account card ───────────────────────────────────── */}
       <div className="profile-content-grid">
 
         {/* Form card */}
@@ -189,26 +149,24 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
           </button>
         </div>
 
-        {/* Side panel */}
-        <aside className="profile-side-panel">
-          <div className="profile-info-card">
-            <div className="profile-info-icon">i</div>
-            <h3>Как это работает</h3>
-            <p>
-              При оформлении заказа система автоматически подтянет телефон и
-              адрес получения из профиля. Вы сможете изменить их прямо в корзине
-              перед отправкой заявки.
-            </p>
+        <aside className="profile-card">
+          <div className="profile-avatar">{initials}</div>
+          <div className="profile-name">{fullName || 'Сотрудник Uzum'}</div>
+          <div className="profile-email">{profile.email}</div>
+
+          <div className="profile-completion">
+            <div className="profile-completion-top">
+              <span>Заполнение профиля</span>
+              <b>{completion}%</b>
+            </div>
+            <div className="profile-progress-track">
+              <div className="profile-progress-bar" style={{ width: `${completion}%` }} />
+            </div>
           </div>
 
-          <div className="profile-summary-card">
-            <h3>Данные профиля</h3>
-            <ProfileSummaryRow label="Email"    value={profile.email || 'Не указан'} />
-            <ProfileSummaryRow label="Телефон"  value={phone       || 'Не указан'} />
-            <ProfileSummaryRow label="Город"    value={city        || 'Не указан'} />
-            <ProfileSummaryRow label="Офис"     value={office      || 'Не указан'} />
-            <ProfileSummaryRow label="Отдел"    value={department  || 'Не указан'} />
-          </div>
+          <span className={`profile-role-badge ${profile.is_admin ? 'admin' : 'employee'}`}>
+            {profile.is_admin ? 'Администратор' : 'Сотрудник'}
+          </span>
         </aside>
 
       </div>
@@ -217,15 +175,6 @@ export default function ProfileClient({ profile }: ProfileClientProps) {
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
-
-function ProfileSummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="profile-summary-row">
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
-  )
-}
 
 function getInitials(name: string, email: string): string {
   const src   = name.trim() || email.split('@')[0] || 'U'
