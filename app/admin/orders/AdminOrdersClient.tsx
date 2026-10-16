@@ -633,16 +633,18 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
             </select>
           </label>
 
-          <label className="ao-label">
+          {order.is_remote && <label className="ao-label">
             Трек-номер
             <input
               type="text"
               value={trackingNumber}
               onChange={(e) => setTrackingNumber(e.target.value)}
-              placeholder="Если есть"
+              placeholder="Номер от службы доставки"
               className="ao-input"
+              aria-describedby={`tracking-help-${order.id}`}
             />
-          </label>
+            <small id={`tracking-help-${order.id}`}>Укажите трек-номер посылки. Сотрудник увидит его в «Моих заказах» и сможет отслеживать доставку на сайте службы доставки.</small>
+          </label>}
 
           <label className="ao-label">
             Где лежит заказ
