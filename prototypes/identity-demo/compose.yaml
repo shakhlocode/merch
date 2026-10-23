@@ -1,0 +1,60 @@
+name: merch-identity-demo
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: merch_identity_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DEMO_DB_ADMIN_PASSWORD:?Run npm run init first}
+      DEMO_DB_PASSWORD: ${DEMO_DB_PASSWORD:?Run npm run init first}
+    volumes:
+      - demo-db:/var/lib/postgresql/data
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/01-app-role.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d merch_identity_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [isolated]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.2
+    command: [start-dev, --import-realm, --hostname=http://127.0.0.1:8180]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: demo-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${DEMO_KC_ADMIN_PASSWORD:?Run npm run init first}
+      JAVA_OPTS_KC_HEAP: -Xms128m -Xmx512m
+      # Back-channel logout must reach the local app, never an egress proxy.
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      NO_PROXY: "*"
+      no_proxy: "*"
+    volumes:
+      - ./.local/realm.json:/opt/keycloak/data/import/realm.json:ro
+      - demo-keycloak:/opt/keycloak/data
+    networks: [isolated]
+  app:
+    build: .
+    environment:
+      DEMO_ONLY: "true"
+      DEMO_BASE_URL: http://127.0.0.1:3180
+      DEMO_ISSUER: http://127.0.0.1:8180/realms/merch-demo
+      DEMO_IDP_INTERNAL_ORIGIN: http://keycloak:8080
+      DEMO_CLIENT_ID: merch-review
+      DEMO_CLIENT_SECRET: ${DEMO_CLIENT_SECRET:?Run npm run init first}
+      DEMO_DB_PASSWORD: ${DEMO_DB_PASSWORD:?Run npm run init first}
+      DEMO_GUEST_TOKEN: ${DEMO_GUEST_TOKEN:?Run npm run init first}
+      DEMO_SESSION_PEPPER: ${DEMO_SESSION_PEPPER:?Run npm run init first}
+    depends_on:
+      db: {condition: service_healthy}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [isolated]
+networks:
+  isolated:
+    internal: true
+volumes:
+  demo-db:
+  demo-keycloak:

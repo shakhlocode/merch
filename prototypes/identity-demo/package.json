@@ -1,0 +1,22 @@
+{
+  "name": "merch-identity-review-demo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "init": "node scripts/init.mjs",
+    "start": "node server.mjs",
+    "ports": "node scripts/ports.mjs",
+    "test": "node --test test/security.test.mjs",
+    "test:e2e": "node test/e2e.mjs"
+  },
+  "dependencies": {
+    "jose": "6.1.0",
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
