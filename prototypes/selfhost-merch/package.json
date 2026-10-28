@@ -1,0 +1,24 @@
+{
+  "name": "merch-selfhost-review-demo",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "init": "node scripts/init.mjs",
+    "ports": "node scripts/ports.mjs",
+    "test": "node --test test/security.test.mjs",
+    "test:e2e": "node test/e2e.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs"
+  },
+  "dependencies": {
+    "jose": "6.1.0",
+    "pg": "8.16.3",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
