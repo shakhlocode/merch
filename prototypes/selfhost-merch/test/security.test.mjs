@@ -4,6 +4,7 @@ import {randomBytes} from 'node:crypto'
 import {seal,unseal} from '../crypto.mjs'
 import {assertDemoConfig,corporateClaims,equal,pkce} from '../security.mjs'
 import {encryptBackup,decryptBackup} from '../scripts/backup-lib.mjs'
+import {choosePortalGrant} from '../portal-access.mjs'
 const secret=randomBytes(32).toString('hex')
 test('Local secret envelopes reject wrong keys and modified ciphertext',()=>{
  const value='only a synthetic invitation';const cipher=seal(value,secret)
@@ -32,4 +33,23 @@ test('Corporate identity requires verified email and nonce, not excess HR fields
 test('PKCE uses standard S256 and comparisons do not accept unequal lengths',()=>{
  assert.equal(pkce('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'),'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM')
  assert(equal('a','a'));assert(!equal('a','aa'));assert(!equal(undefined,undefined))
+})
+test('Portal admission fails closed for unknown, inactive, denied and ambiguous identities',()=>{
+ const identity={subject:'person',legalEntity:'TEST-ECOM',groups:['merch-ecom'],active:true}
+ const a={id:'1',campaign_id:'one',scope:'catalog',kind:'legal_entity',value:'TEST-ECOM',effect:'allow',enabled:true}
+ assert.equal(choosePortalGrant(identity,[]),null)
+ assert.equal(choosePortalGrant(identity,[a]),a)
+ assert.equal(choosePortalGrant({...identity,active:false},[a]),null)
+ assert.equal(choosePortalGrant({...identity,legalEntity:null},[a]),null)
+ assert.equal(choosePortalGrant(identity,[a,{...a,id:'2',kind:'person',value:'person',effect:'deny'}]),null)
+ assert.equal(choosePortalGrant(identity,[a,{...a,id:'2',scope:'welcome'}]),null)
+ assert.equal(choosePortalGrant(identity,[a,{...a,id:'2',campaign_id:'other'}]),null)
+ assert.equal(choosePortalGrant(identity,[a,{...a,id:'2',kind:'group',value:'merch-ecom'}]).campaign_id,'one')
+ assert.equal(choosePortalGrant(identity,[{...a,enabled:false}]),null)
+})
+test('Portal rule attributes are typed, bounded claims; arbitrary HR metadata is discarded',()=>{
+ const c={sub:'stable',nonce:'nonce',email:'demo@example.invalid',email_verified:true,name:'Тест',legal_entity_code:'TEST-ECOM',merch_groups:['merch-ecom'],employee_active:true,department:'discard'}
+ const i=corporateClaims(c,'nonce','client');assert.equal(i.legalEntity,'TEST-ECOM');assert.deepEqual(i.groups,['merch-ecom']);assert(i.active);assert(!('department'in i))
+ const invalid=corporateClaims({...c,employee_active:'true',merch_groups:'merch-ecom',legal_entity_code:{code:'TEST-ECOM'}},'nonce','client')
+ assert.equal(invalid.active,false);assert.equal(invalid.legalEntity,null);assert.deepEqual(invalid.groups,[])
 })

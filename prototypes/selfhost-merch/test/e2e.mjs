@@ -72,7 +72,7 @@ try{
  await post(op,'/api/admin/campaigns/'+campaign(1)+'/close',{});await api(alice.c,'/api/me',undefined,401)
  sql(`update demo_campaigns set closed_at=now()-interval '31 days' where id='${campaign(1)}'; insert into demo_events(kind,detail,created_at) values('expired-test','no personal values',now()-interval '31 days')`)
  await waitUntil(()=>sql(`select count(*) from demo_employees where campaign_id='${campaign(1)}'`)==='0')
- assert.equal(sql(`select count(*) from demo_orders where campaign_id='${campaign(1)}'`),'0');assert.equal(sql("select count(*) from demo_users where subject='20000000-0000-4000-8000-000000000001'"),'0');assert.equal(sql("select count(*) from demo_events where kind='expired-test'"),'0')
+ assert.equal(sql(`select count(*) from demo_portal_rules where campaign_id='${campaign(1)}'`),'0');assert.equal(sql(`select count(*) from demo_orders where campaign_id='${campaign(1)}'`),'0');assert.equal(sql("select count(*) from demo_users where subject='20000000-0000-4000-8000-000000000001'"),'0');assert.equal(sql("select count(*) from demo_events where kind='expired-test'"),'0')
  assert.equal(sql(`select qty from demo_aggregates where campaign_id='${campaign(1)}' and variant_id='${variant(1,1)}'`),'1')
  assert.equal(sql(`select count(*) from demo_employees where campaign_id='${campaign(2)}'`),'1')
  pass('Due campaign cleanup removes participant profiles/accounts/orders/mail/invitations while preserving other campaign and quantity aggregates')

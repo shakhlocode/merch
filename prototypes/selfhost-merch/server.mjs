@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { domainRoute } from './domain.mjs'
+import {portalEmployee,portalGrant} from './portal-access.mjs'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { assertDemoConfig, corporateClaims, equal, hash, pkce, random, sessionHash, validateOrder } from './security.mjs'
 
@@ -17,7 +18,7 @@ const inviteId = '40000000-0000-4000-8000-000000000001'
 const jwks = createRemoteJWKSet(new URL(internal + '/realms/merch-storage-demo/protocol/openid-connect/certs'), { timeoutDuration:4000 })
 const events = {
   login_started:'Браузер → тестовый Keycloak: openid profile email, state, nonce, PKCE. Пароль получает только Keycloak.',
-  login_succeeded:'Сервер → тестовый Keycloak: обмен кода. Проверены подпись, issuer, audience, срок, nonce. Права проверены по локальному реестру.',
+  login_succeeded:'Сервер → тестовый Keycloak: обмен кода. Проверены подпись, issuer, audience, срок, nonce. Проверено локальное разрешение или правило доступа портала.',
   login_failed:'Корпоративный вход отклонён. Секреты и ответ провайдера в журнал не записываются.',
   guest_claimed:'Персональное приглашение и идентификатор проверены транзакционно. Создана локальная сессия.',
   guest_failed:'Активация приглашения отклонена.',
@@ -47,13 +48,20 @@ function origin(req) { if (req.headers.origin !== config.base) throw new Error('
 async function session(req) {
   const token = cookie(req,'merch_storage_session')
   if (!/^[\w-]{43}$/.test(token)) return null
-  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.active,false as access_used
+  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.campaign_id,e.portal_managed,e.active,false as access_used
     from demo_sessions s join demo_users u on u.id=s.user_id join demo_employees e on e.id=u.employee_id where s.token_hash=$1 and s.expires_at>now()`,[sh(token)])
-  return rows[0] || null
+  const s=rows[0]
+  if(s?.portal_managed){
+    if(!s.portal_claims)return null
+    const grant=await portalGrant(pool,s.portal_claims)
+    if(!grant||grant.campaign_id!==s.campaign_id||grant.scope!==s.scope||grant.unit!==s.unit)return null
+  }
+  return s || null
 }
-async function newSession(db,res,userId,method,idpSid=null) {
+async function newSession(db,res,userId,method,idpSid=null,portalIdentity=null) {
   const token=random(), csrf=random()
   await db.query(`insert into demo_sessions(token_hash,user_id,csrf,method,issuer,idp_sid,expires_at) values($1,$2,$3,$4,$5,$6,now()+interval '15 minutes')`,[sh(token),userId,csrf,method,method==='oidc'?config.issuer:null,idpSid])
+  if(portalIdentity)await db.query('update demo_sessions set portal_claims=$1 where token_hash=$2',[JSON.stringify({subject:portalIdentity.subject,legalEntity:portalIdentity.legalEntity,groups:portalIdentity.groups,active:portalIdentity.active}),sh(token)])
   setCookie(res,'merch_storage_session',token,900)
 }
 function internalEndpoint(endpoint) {
@@ -113,15 +121,13 @@ const server=http.createServer(async(req,res)=>{
       const db=await pool.connect()
       try {
         await db.query('begin')
-        // Pre-bound synthetic identities. No automatic merging by email or editable metadata.
-        const {rows:people}=await db.query('select * from demo_employees where corporate_subject=$1 for update',[identity.subject])
-        const employee=people[0]
-        if(!employee||!employee.active)throw new Error('Registry access denied')
+        // Bound by issuer + subject, never by email. Rules use signed IdP claims only.
+        const employee=await portalEmployee(db,identity)
         await db.query('update demo_employees set full_name=$1,email=$2 where id=$3',[identity.name,identity.email,employee.id])
         await db.query(`insert into demo_users(id,employee_id,issuer,subject) values($1,$2,$3,$4) on conflict(employee_id) do nothing`,[randomUUID(),employee.id,config.issuer,identity.subject])
         const {rows:users}=await db.query('select * from demo_users where employee_id=$1 and issuer=$2 and subject=$3',[employee.id,config.issuer,identity.subject])
         if(!users[0])throw new Error('Account binding conflict')
-        await newSession(db,res,users[0].id,'oidc',identity.sid)
+        await newSession(db,res,users[0].id,'oidc',identity.sid,employee.portal_managed?identity:null)
         await db.query('commit')
       }catch(e){await db.query('rollback');throw e}finally{db.release()}
       await event('login_succeeded');return redirect(res,'/shop')
@@ -149,7 +155,7 @@ const server=http.createServer(async(req,res)=>{
     }
     return json(res,404,{error:'Not found'})
   }catch{
-    if(path==='/auth/callback'){await event('login_failed');return html(res,'Вход отклонён','<section class="card"><h1>Вход отклонён</h1><p>Проверьте тестовый аккаунт, разрешение реестра или начните вход заново. Кадровый идентификатор и корпоративная личность должны соответствовать реестру.</p><a href="/">На страницу входа</a></section>',403)}
+    if(path==='/auth/callback'){await event('login_failed');return html(res,'Вход отклонён','<section class="card"><h1>Вход отклонён</h1><p>Нет однозначного разрешения на открытую раздачу. Уточните доступ у организатора или начните вход заново.</p><a href="/">На страницу входа</a></section>',403)}
     return json(res,path==='/health'?503:400,{error:'Запрос отклонён. Проверьте данные, разрешения и срок действия приглашения.'})
   }
 })

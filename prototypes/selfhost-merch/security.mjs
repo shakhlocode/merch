@@ -21,7 +21,10 @@ export function corporateClaims(payload, nonce, clientId) {
   if (!equal(payload.nonce, nonce) || typeof payload.sub !== 'string' || !payload.sub || payload.email_verified !== true || typeof payload.email !== 'string' || !payload.email.includes('@')) throw new Error('Invalid corporate identity')
   if ((Array.isArray(payload.aud) && payload.aud.length > 1 && payload.azp !== clientId) || (payload.azp && payload.azp !== clientId)) throw new Error('Wrong authorized party')
   for (const k of ['name']) if (typeof payload[k] !== 'string' || !payload[k].trim() || payload[k].length > 250) throw new Error('Missing trusted attribute: ' + k)
-  return { subject: payload.sub, email: payload.email, name: payload.name, sid: typeof payload.sid === 'string' ? payload.sid : null }
+  const legalEntity=typeof payload.legal_entity_code==='string'&&/^[A-Z0-9_-]{1,80}$/.test(payload.legal_entity_code)?payload.legal_entity_code:null
+  const groups=Array.isArray(payload.merch_groups)&&payload.merch_groups.length<=50&&payload.merch_groups.every(g=>typeof g==='string'&&/^[a-z0-9_-]{1,80}$/.test(g))?payload.merch_groups:[]
+  return { subject: payload.sub, email: payload.email, name: payload.name, sid: typeof payload.sid === 'string' ? payload.sid : null,
+    legalEntity,groups,active:payload.employee_active===true }
 }
 export function validateOrder(body, scope, method) {
   const keys = ['items','mode','phone','office','country','city','address','pvz','comment','csrf']

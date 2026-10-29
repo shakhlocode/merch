@@ -3,6 +3,7 @@ import {randomUUID} from 'node:crypto'
 import QRCode from 'qrcode'
 import {hash,random,equal} from './security.mjs'
 import {seal,unseal} from './crypto.mjs'
+import {portalAdmin} from './portal-admin.mjs'
 const units=['ecom','fintech','technologies']
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v)
 function cookie(req,name){return(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||''}
@@ -31,7 +32,7 @@ async function orderList(pool,s,adminUnits=null){
 }
 export async function domainRoute(req,res,url,s,h){
  const {pool,json,body,origin,event,sh,newSession}=h,path=url.pathname
- const page=['/','/shop','/admin','/data','/mailbox','/review'].includes(path)
+ const page=['/','/shop','/admin','/data','/mailbox','/review','/access'].includes(path)
  if(req.method==='GET'&&page){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(await readFile('web/index.html'));return true}
  if(req.method==='GET'&&['/storage-demo.js','/storage-demo.css'].includes(path)){res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':'text/css'});res.end(await readFile('web/'+path.slice(1)));return true}
  if(path==='/outbox'&&req.method==='GET'){h.redirect(res,'/mailbox');return true}
@@ -57,6 +58,7 @@ export async function domainRoute(req,res,url,s,h){
  // Retention/restore problems fail closed, not merely display an unhealthy badge.
  try{const health=await fetch('http://retention:9050/health',{signal:AbortSignal.timeout(1500)});if(!health.ok)throw new Error()}catch{json(res,503,{error:'Сервис очистки недоступен; работа временно закрыта'});return true}
  const rs=await roles(pool,s),isSuper=rs.some(r=>r.role==='super'),adminUnits=unitList(rs)
+ if(await portalAdmin(req,res,url,s,{pool,json,body,origin,adminUnits}))return true
  const employee=(await pool.query('select campaign_id from demo_employees where id=$1',[s.employee_id])).rows[0]
  const campaign=employee?.campaign_id?(await pool.query('select * from demo_campaigns where id=$1',[employee.campaign_id])).rows[0]:null
  if(req.method==='GET'&&path==='/api/me'){json(res,200,{id:s.user_id,name:s.full_name,email:s.email,unit:s.unit,scope:s.scope,method:s.method,csrf:s.csrf,adminUnits,isSuper,campaign});return true}
@@ -86,7 +88,7 @@ export async function domainRoute(req,res,url,s,h){
    if(!isSuper){json(res,403,{error:'Нужен супер администратор'});return true}
    const preview=(await pool.query('select demo_retention_preview() as p')).rows[0].p
    const campaigns=(await pool.query('select * from demo_campaigns order by unit')).rows
-   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['ФИО','email — только корпоративный вход','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу','товары и статусы заказа']});return true
+   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['ФИО','email — только корпоративный вход','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу и правила по юрлицу/группе/subject','код юрлица, группы и активность — только в 15-минутной серверной сессии','товары и статусы заказа']});return true
   }
   if(path==='/api/admin/analytics'){
    const rows=(await pool.query(`select v.unit,v.product,v.size,v.color,v.total,v.reserved,

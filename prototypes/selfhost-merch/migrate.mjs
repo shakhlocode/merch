@@ -30,6 +30,10 @@ if(existing){
   for(const [i,name,email,unit,scope,c,subject]of people){
    const eid=`10000000-0000-4000-8000-${String(i).padStart(12,'0')}`,uid=`30000000-0000-4000-8000-${String(i).padStart(12,'0')}`,sub=subject?`20000000-0000-4000-8000-${String(subject).padStart(12,'0')}`:null
    await db.query('insert into demo_employees(id,corporate_subject,full_name,email,unit,scope,campaign_id) values($1,$2,$3,$4,$5,$6,$7)',[eid,sub,name,email,unit,scope,c?`60000000-0000-4000-8000-${String(c).padStart(12,'0')}`:null])
+   if(subject&&c){
+    await db.query('update demo_employees set portal_managed=true where id=$1',[eid])
+    await db.query("insert into demo_portal_rules(id,campaign_id,kind,value,effect,scope) values($1,$2,'person',$3,'allow',$4)",[randomUUID(),`60000000-0000-4000-8000-${String(c).padStart(12,'0')}`,sub,scope])
+   }
    if(subject)await db.query('insert into demo_users values($1,$2,$3,$4)',[uid,eid,'http://127.0.0.1:8280/realms/merch-storage-demo',sub])
    if(i===5||i===6)await db.query('insert into demo_roles values($1,$2,$3)',[uid,i===5?'*':'fintech',i===5?'super':'admin'])
   }

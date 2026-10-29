@@ -5,6 +5,16 @@ create table if not exists demo_campaigns(
  closed_at timestamptz, purged_at timestamptz
 );
 alter table demo_employees add column if not exists campaign_id uuid references demo_campaigns;
+alter table demo_employees add column if not exists portal_managed boolean not null default false;
+-- Trusted authorization attributes live only as long as the server session.
+alter table demo_sessions add column if not exists portal_claims jsonb;
+create table if not exists demo_portal_rules(
+ id uuid primary key, campaign_id uuid not null references demo_campaigns,
+ kind text not null check(kind in('person','legal_entity','group')), value text not null,
+ effect text not null check(effect in('allow','deny')), scope text not null check(scope in('catalog','welcome')),
+ enabled boolean not null default true,
+ unique(campaign_id,kind,value,effect,scope)
+);
 create table if not exists demo_roles(user_id uuid references demo_users on delete cascade, unit text not null, role text not null check(role in('admin','super')), primary key(user_id,unit));
 create table if not exists demo_variants(
  id uuid primary key, unit text not null, product text not null, scope text not null,
@@ -84,6 +94,7 @@ begin
    delete from demo_sessions where user_id in(select u.id from demo_users u join demo_employees e on e.id=u.employee_id where e.campaign_id=c.id);
    delete from demo_users where employee_id in(select id from demo_employees where campaign_id=c.id);
    delete from demo_employees where campaign_id=c.id;
+   delete from demo_portal_rules where campaign_id=c.id;
    update demo_campaigns set status='closed',closed_at=coalesce(closed_at,now()),purged_at=coalesce(purged_at,now()) where id=c.id;
    n:=n+1;
  end loop;
@@ -100,6 +111,7 @@ revoke all on all tables in schema public from public;
 revoke all on function demo_retention_preview(),demo_run_retention(uuid[]) from public;
 grant select on all tables in schema public to merch_app;
 grant insert,update on demo_employees,demo_users,demo_invites,demo_orders,demo_variants,demo_campaigns to merch_app;
+grant insert,update on demo_portal_rules to merch_app;
 grant insert,delete,update on demo_sessions,demo_flows,demo_logout_tokens,demo_outbox to merch_app;
 grant insert on demo_order_items,demo_stock_movements,demo_events to merch_app;
 grant usage,select on all sequences in schema public to merch_app;
