@@ -20,7 +20,7 @@ try {
   }
   if (!ready) throw new Error('PostgreSQL did not become ready')
   const migrations = (await readdir(path.join(root, 'supabase/migrations'))).filter(f => f.endsWith('.sql')).sort().map(f => 'supabase/migrations/'+f)
-  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql','supabase/tests/business-units.sql','supabase/tests/transfer-to-unit.sql','supabase/tests/browser-recovery.sql','supabase/tests/pvz-delivery.sql']) {
+  for (const file of ['supabase/tests/platform-fixture.sql', ...migrations, 'supabase/tests/workflow.sql', 'supabase/tests/handout.sql', 'supabase/tests/product-setup.sql', 'supabase/tests/directory-import.sql', 'supabase/tests/access-periods.sql', 'supabase/tests/invitations.sql', 'supabase/tests/fulfillment.sql','supabase/tests/store-scopes.sql','supabase/tests/fulfillment-choices.sql','supabase/tests/order-contacts.sql','supabase/tests/inventory-analytics.sql','supabase/tests/business-units.sql','supabase/tests/transfer-to-unit.sql','supabase/tests/browser-recovery.sql','supabase/tests/pvz-delivery.sql','supabase/tests/confirm-handout.sql']) {
     const result = run(['exec', '-i', name, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], await readFile(path.join(root, file), 'utf8'))
     const lines = result.stderr.split('\n').filter(line => /PASS:/.test(line))
     console.log(file + ': passed')
@@ -83,7 +83,7 @@ try {
       })
       child.stdin.end(`begin; set local role authenticated;
         select set_config('request.jwt.claim.sub','${adminId}',true);
-        select public.admin_issue_order((select pickup_code from public.orders));
+        select public.admin_confirm_pickup((select pickup_code from public.orders),(select id from public.orders),(select version from public.orders));
         select pg_sleep(0.5); commit;`)
     })
   }
@@ -97,7 +97,7 @@ try {
       (select count(*) from public.orders where status='received' and pickup_status='handed_owner')=1
       from public.product_variants where sku='LAST-ITEM';`)
   if (issued.stdout.trim() !== 't') throw new Error('Concurrent issue corrupted stock, audit or handout status')
-  console.log('PASS: two simultaneous admin scans issue once with a single stock movement and audit event')
+  console.log('PASS: two simultaneous explicit confirmations issue once with a single stock movement and audit event')
 
   run(['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'], `
     update public.employee_directory set access_mode='one_order' where email='race@example.test';

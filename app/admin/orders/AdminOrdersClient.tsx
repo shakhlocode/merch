@@ -664,12 +664,13 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
               type="text"
               value={storageLocation}
               onChange={(e) => setStorageLocation(e.target.value)}
-              placeholder="Например: стеллаж B-3, офис Ташкент"
+              placeholder="Например: 1 коробка или 2 стеллаж"
               className="ao-input"
             />
+            <small>Укажите произвольное место хранения и сохраните изменения. Его увидит администратор после сканирования QR.</small>
           </label>
 
-          {!order.is_remote&&!terminal&&<p className="ao-manage-text">Статус «Получен» выставляется автоматически при сканировании кода.</p>}
+          {!order.is_remote&&!terminal&&<p className="ao-manage-text">Сканирование покажет получателя и место хранения. Статус «Получен» появится только после нажатия «Выдать заказ».</p>}
           <label className="ao-label">Ответственный администратор
             <select className="ao-input" value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
               <option value="">Не назначен</option>
