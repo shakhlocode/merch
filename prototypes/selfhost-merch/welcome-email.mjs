@@ -6,7 +6,7 @@ const normalize=x=>typeof x==='string'?x.trim().toLowerCase():''
 const validEmail=x=>x.length<=254&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x)
 const uuid=x=>typeof x==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(x)
 function cookie(req,name){return(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||''}
-async function transaction(pool,fn){const db=await pool.connect();try{await db.query('begin');const r=await fn(db);await db.query('commit');return r}catch(e){await db.query('rollback');throw e}finally{db.release()}}
+async function transaction(pool,fn){const db=await pool.connect();try{await db.query('begin');await db.query('select pg_advisory_xact_lock(77334455)');const r=await fn(db);await db.query('commit');return r}catch(e){await db.query('rollback');throw e}finally{db.release()}}
 async function audit(db,actor,kind){await db.query('insert into demo_events(kind,detail,actor_id) values($1,$2,$3)',[kind,'Операция приглашения Welcome pack; без email, ссылок и тела запроса в журнале.',actor])}
 async function queueLink(db,e,base){
  await db.query('delete from demo_email_links where employee_id=$1',[e.id])

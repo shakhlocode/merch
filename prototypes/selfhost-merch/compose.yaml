@@ -55,6 +55,7 @@ services:
     command: [node, worker.mjs]
     environment:
       DEMO_RETENTION_PASSWORD: ${DEMO_RETENTION_PASSWORD:?Run npm run init}
+      DEMO_LIFECYCLE_KEY: ${DEMO_LIFECYCLE_KEY:?Run npm run init}
     depends_on:
       setup: {condition: service_completed_successfully}
     volumes:
@@ -71,6 +72,7 @@ services:
   app:
     build: .
     environment:
+      DEMO_LIFECYCLE_KEY: ${DEMO_LIFECYCLE_KEY:?Run npm run init}
       DEMO_ONLY: "true"
       DEMO_BASE_URL: http://127.0.0.1:3280
       DEMO_ISSUER: http://127.0.0.1:8280/realms/merch-storage-demo

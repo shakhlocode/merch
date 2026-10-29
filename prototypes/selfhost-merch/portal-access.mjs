@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto'
+import {sourceKey} from './lifecycle-auth.mjs'
 
 export function choosePortalGrant(identity,rules){
   if(identity.active!==true)return null
@@ -18,6 +19,10 @@ export async function portalGrant(db,identity){
   return choosePortalGrant(identity,rows)
 }
 export async function portalEmployee(db,identity){
+  await db.query('select pg_advisory_xact_lock(77334455)')
+  if(identity.active!==true)throw new Error('Inactive source account')
+  const key=sourceKey('oidc','http://127.0.0.1:8280/realms/merch-storage-demo:'+identity.subject)
+  if(identity.deleteAt&&new Date(identity.deleteAt)<=new Date()||(await db.query('select 1 from demo_source_blocks where key_hash=$1',[key])).rows[0])throw new Error('Source account deleted')
   // Serialize first login and policy changes without creating a duplicate account.
   await db.query('select pg_advisory_xact_lock(77334456)')
   const existing=(await db.query('select * from demo_employees where corporate_subject=$1 for update',[identity.subject])).rows[0]

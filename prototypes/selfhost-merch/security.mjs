@@ -14,7 +14,7 @@ export function assertDemoConfig(env) {
   if (base.origin !== 'http://127.0.0.1:3280' || issuer.href !== 'http://127.0.0.1:8280/realms/merch-storage-demo') throw new Error('Non-demo origin refused')
   if (env.DEMO_IDP_INTERNAL_ORIGIN !== 'http://keycloak:8080') throw new Error('Non-demo provider refused')
   if (env.DEMO_CLIENT_ID !== 'merch-storage-review') throw new Error('Non-demo client refused')
-  for (const key of ['DEMO_CLIENT_SECRET','DEMO_DB_PASSWORD','DEMO_GUEST_TOKEN','DEMO_SESSION_PEPPER','DEMO_DATA_KEY']) if (!/^[a-f0-9]{64}$/.test(env[key] || '')) throw new Error('Run demo initialization: ' + key)
+  for (const key of ['DEMO_CLIENT_SECRET','DEMO_DB_PASSWORD','DEMO_GUEST_TOKEN','DEMO_SESSION_PEPPER','DEMO_DATA_KEY','DEMO_LIFECYCLE_KEY']) if (!/^[a-f0-9]{64}$/.test(env[key] || '')) throw new Error('Run demo initialization: ' + key)
   return { base: base.origin, issuer: issuer.href }
 }
 export function corporateClaims(payload, nonce, clientId) {
@@ -23,7 +23,12 @@ export function corporateClaims(payload, nonce, clientId) {
   for (const k of ['name']) if (typeof payload[k] !== 'string' || !payload[k].trim() || payload[k].length > 250) throw new Error('Missing trusted attribute: ' + k)
   const legalEntity=typeof payload.legal_entity_code==='string'&&/^[A-Z0-9_-]{1,80}$/.test(payload.legal_entity_code)?payload.legal_entity_code:null
   const groups=Array.isArray(payload.merch_groups)&&payload.merch_groups.length<=50&&payload.merch_groups.every(g=>typeof g==='string'&&/^[a-z0-9_-]{1,80}$/.test(g))?payload.merch_groups:[]
-  return { subject: payload.sub, email: payload.email, name: payload.name, sid: typeof payload.sid === 'string' ? payload.sid : null,
+  const businessUnit=typeof payload.business_unit==='string'&&payload.business_unit.length<=250?payload.business_unit:null
+  const legalName=typeof payload.legal_entity_name==='string'&&payload.legal_entity_name.length<=250?payload.legal_entity_name:null
+  if(!businessUnit?.trim()||!legalName?.trim())throw new Error('Missing trusted business unit or legal entity')
+  const deleteAt=payload.delete_at==null?null:typeof payload.delete_at==='string'&&Number.isFinite(Date.parse(payload.delete_at))?new Date(payload.delete_at).toISOString():null
+  if(payload.delete_at!=null&&!deleteAt)throw new Error('Invalid deletion timestamp')
+  return { businessUnit,legalName,deleteAt,subject: payload.sub, email: payload.email, name: payload.name, sid: typeof payload.sid === 'string' ? payload.sid : null,
     legalEntity,groups,active:payload.employee_active===true }
 }
 export function validateOrder(body, scope, method) {

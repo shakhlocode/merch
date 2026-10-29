@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { domainRoute } from './domain.mjs'
+import {lifecycleRoute} from './lifecycle-routes.mjs'
+import {sourceKey} from './lifecycle-auth.mjs'
 import {welcomeEmailRoute} from './welcome-email.mjs'
 import {portalEmployee,portalGrant} from './portal-access.mjs'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
@@ -40,7 +42,7 @@ function html(res,title,body,status=200) {
 }
 async function body(req) {
   let text = ''
-  for await (const chunk of req) { text += chunk; if (Buffer.byteLength(text)>16384) throw new Error('Request too large') }
+  for await (const chunk of req) { text += chunk; if (Buffer.byteLength(text)>(req.url?.startsWith('/api/admin/hr')||req.url?.startsWith('/api/admin/products')?3*1024*1024:16384)) throw new Error('Request too large') }
   const value = req.headers['content-type']?.startsWith('application/json') ? JSON.parse(text) : Object.fromEntries(new URLSearchParams(text))
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid request')
   return value
@@ -49,9 +51,11 @@ function origin(req) { if (req.headers.origin !== config.base) throw new Error('
 async function session(req) {
   const token = cookie(req,'merch_storage_session')
   if (!/^[\w-]{43}$/.test(token)) return null
-  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.campaign_id,e.portal_managed,e.email_welcome,e.welcome_received_at,e.access_expires_at,e.active,false as access_used
+  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.campaign_id,e.portal_managed,e.email_welcome,e.welcome_received_at,e.access_expires_at,e.source_delete_at,e.source_key,e.fulfilled_at,e.hr_personnel,e.legal_entity,e.business_unit,e.position,e.phone,e.active,false as access_used
     from demo_sessions s join demo_users u on u.id=s.user_id join demo_employees e on e.id=u.employee_id where s.token_hash=$1 and s.expires_at>now()`,[sh(token)])
   const s=rows[0]
+  if(s?.source_delete_at&&new Date(s.source_delete_at)<=new Date())return null
+  if(s?.source_key&&(await pool.query('select 1 from demo_source_blocks where key_hash=$1',[s.source_key])).rows[0])return null
   if(s?.email_welcome&&(!s.active||s.welcome_received_at||!s.access_expires_at||new Date(s.access_expires_at)<=new Date()))return null
   if(s?.portal_managed){
     if(!s.portal_claims)return null
@@ -61,10 +65,10 @@ async function session(req) {
   return s || null
 }
 async function newSession(db,res,userId,method,idpSid=null,portalIdentity=null) {
-  const token=random(), csrf=random()
-  await db.query(`insert into demo_sessions(token_hash,user_id,csrf,method,issuer,idp_sid,expires_at) values($1,$2,$3,$4,$5,$6,now()+interval '15 minutes')`,[sh(token),userId,csrf,method,method==='oidc'?config.issuer:null,idpSid])
+  const token=random(), csrf=random(),seconds=method==='identifier'?30*86400:900
+  await db.query(`insert into demo_sessions(token_hash,user_id,csrf,method,issuer,idp_sid,expires_at) values($1,$2,$3,$4,$5,$6,now()+make_interval(secs=>$7))`,[sh(token),userId,csrf,method,method==='oidc'?config.issuer:null,idpSid,seconds])
   if(portalIdentity)await db.query('update demo_sessions set portal_claims=$1 where token_hash=$2',[JSON.stringify({subject:portalIdentity.subject,legalEntity:portalIdentity.legalEntity,groups:portalIdentity.groups,active:portalIdentity.active}),sh(token)])
-  setCookie(res,'merch_storage_session',token,900)
+  setCookie(res,'merch_storage_session',token,seconds)
 }
 function internalEndpoint(endpoint) {
   const url=new URL(endpoint)
@@ -90,6 +94,7 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,config.base),path=url.pathname
   try {
     const currentSession=await session(req)
+    if(await lifecycleRoute(req,res,url,currentSession,{pool,config,json,body,origin}))return
     if(await welcomeEmailRoute(req,res,url,currentSession,{pool,config,json,body,origin,newSession}))return
     if(await domainRoute(req,res,url,currentSession,{pool,config,html,json,redirect,body,origin,event,newSession,sh,esc}))return
     if(req.method==='GET'&&path==='/style.css'){res.writeHead(200,{'Content-Type':'text/css'});return res.end(css)}
@@ -127,7 +132,12 @@ const server=http.createServer(async(req,res)=>{
         await db.query('begin')
         // Bound by issuer + subject, never by email. Rules use signed IdP claims only.
         const employee=await portalEmployee(db,identity)
-        await db.query('update demo_employees set full_name=$1,email=$2 where id=$3',[identity.name,identity.email,employee.id])
+        const key=sourceKey('oidc',config.issuer+':'+identity.subject)
+        const schedule=(await db.query('select delete_at from demo_source_schedules where key_hash=$1',[key])).rows[0]
+        const deletion=schedule?.delete_at||identity.deleteAt
+        if(deletion&&new Date(deletion)<=new Date())throw new Error('Source account expired')
+        await db.query('update demo_employees set full_name=$1,email=$2,business_unit=$3,legal_entity=$4,source_key=$5,source_delete_at=$6 where id=$7',[identity.name,identity.email,identity.businessUnit,identity.legalName||identity.legalEntity,key,deletion,employee.id])
+        if(deletion)await db.query('insert into demo_source_schedules values($1,$2) on conflict(key_hash) do nothing',[key,deletion])
         await db.query(`insert into demo_users(id,employee_id,issuer,subject) values($1,$2,$3,$4) on conflict(employee_id) do nothing`,[randomUUID(),employee.id,config.issuer,identity.subject])
         const {rows:users}=await db.query('select * from demo_users where employee_id=$1 and issuer=$2 and subject=$3',[employee.id,config.issuer,identity.subject])
         if(!users[0])throw new Error('Account binding conflict')

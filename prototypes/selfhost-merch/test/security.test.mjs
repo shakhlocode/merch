@@ -19,13 +19,13 @@ test('Backup is authenticated and cannot be restored with modified content',()=>
  assert.throws(()=>decryptBackup(backup,randomBytes(32).toString('hex')))
 })
 test('Only loopback demo origins and generated local secrets accepted',()=>{
- const c={DEMO_ONLY:'true',DEMO_BASE_URL:'http://127.0.0.1:3280',DEMO_ISSUER:'http://127.0.0.1:8280/realms/merch-storage-demo',DEMO_IDP_INTERNAL_ORIGIN:'http://keycloak:8080',DEMO_CLIENT_ID:'merch-storage-review',...Object.fromEntries(['DEMO_CLIENT_SECRET','DEMO_DB_PASSWORD','DEMO_GUEST_TOKEN','DEMO_SESSION_PEPPER','DEMO_DATA_KEY'].map(k=>[k,secret]))}
+ const c={DEMO_ONLY:'true',DEMO_BASE_URL:'http://127.0.0.1:3280',DEMO_ISSUER:'http://127.0.0.1:8280/realms/merch-storage-demo',DEMO_IDP_INTERNAL_ORIGIN:'http://keycloak:8080',DEMO_CLIENT_ID:'merch-storage-review',...Object.fromEntries(['DEMO_CLIENT_SECRET','DEMO_DB_PASSWORD','DEMO_GUEST_TOKEN','DEMO_SESSION_PEPPER','DEMO_DATA_KEY','DEMO_LIFECYCLE_KEY'].map(k=>[k,secret]))}
  assertDemoConfig(c)
  for(const change of [{DEMO_ONLY:'false'},{DEMO_BASE_URL:'https://uzum-merch-taupe.vercel.app'},{DEMO_ISSUER:'https://corporate.example.invalid/realms/company'},{DEMO_DATA_KEY:''}])assert.throws(()=>assertDemoConfig({...c,...change}))
 })
 test('Corporate identity requires verified email and nonce, not excess HR fields',()=>{
- const c={sub:'stable',aud:'merch-storage-review',nonce:'nonce',email:'demo@example.invalid',email_verified:true,name:'Тестовый сотрудник'}
- const identity=corporateClaims(c,'nonce','merch-storage-review');assert.equal(identity.subject,'stable');assert(!('department'in identity));assert(!('legal'in identity))
+ const c={sub:'stable',aud:'merch-storage-review',nonce:'nonce',email:'demo@example.invalid',email_verified:true,name:'Тестовый сотрудник',business_unit:'ecom',legal_entity_name:'Тестовое ЮЛ'}
+ const identity=corporateClaims(c,'nonce','merch-storage-review');assert.equal(identity.subject,'stable');assert.equal(identity.businessUnit,'ecom');assert.equal(identity.legalName,'Тестовое ЮЛ');assert(!('department'in identity));assert(!('legal'in identity))
  assert.throws(()=>corporateClaims({...c,email_verified:false},'nonce','merch-storage-review'))
  assert.throws(()=>corporateClaims(c,'other','merch-storage-review'))
  assert.throws(()=>corporateClaims({...c,azp:'wrong'},'nonce','merch-storage-review'))
@@ -48,8 +48,20 @@ test('Portal admission fails closed for unknown, inactive, denied and ambiguous 
  assert.equal(choosePortalGrant(identity,[{...a,enabled:false}]),null)
 })
 test('Portal rule attributes are typed, bounded claims; arbitrary HR metadata is discarded',()=>{
- const c={sub:'stable',nonce:'nonce',email:'demo@example.invalid',email_verified:true,name:'Тест',legal_entity_code:'TEST-ECOM',merch_groups:['merch-ecom'],employee_active:true,department:'discard'}
+ const c={sub:'stable',nonce:'nonce',email:'demo@example.invalid',email_verified:true,name:'Тест',business_unit:'ecom',legal_entity_name:'Тестовое ЮЛ',legal_entity_code:'TEST-ECOM',merch_groups:['merch-ecom'],employee_active:true,department:'discard'}
  const i=corporateClaims(c,'nonce','client');assert.equal(i.legalEntity,'TEST-ECOM');assert.deepEqual(i.groups,['merch-ecom']);assert(i.active);assert(!('department'in i))
  const invalid=corporateClaims({...c,employee_active:'true',merch_groups:'merch-ecom',legal_entity_code:{code:'TEST-ECOM'}},'nonce','client')
  assert.equal(invalid.active,false);assert.equal(invalid.legalEntity,null);assert.deepEqual(invalid.groups,[])
+})
+
+import {eventSignature,verifyEvent} from '../lifecycle-auth.mjs'
+import {parseHR} from '../lifecycle-routes.mjs'
+test('HR CSV keeps PINFL strings and quoted delimiters; malformed data rejected',()=>{
+ const rows=parseHR('full_name;legal_entity;position;phone;pinfl\n"Тест; Имя";Тестовое ЮЛ;Тест;+998000000000;00000000000001')
+ assert.equal(rows[0].pinfl,'00000000000001');assert.equal(rows[0].full_name,'Тест; Имя');assert.throws(()=>parseHR('wrong;header\n1;2'))
+})
+test('Source events require a fresh, matching keyed signature',()=>{
+ process.env.DEMO_LIFECYCLE_KEY=secret
+ const time=String(Date.now()),b={id:'synthetic',kind:'deleted'},req={headers:{'x-event-timestamp':time,'x-event-signature':eventSignature(time,b)}}
+ assert(verifyEvent(req,b));assert(!verifyEvent(req,{...b,kind:'updated'}));assert(!verifyEvent({headers:{...req.headers,'x-event-timestamp':'0'}},b))
 })

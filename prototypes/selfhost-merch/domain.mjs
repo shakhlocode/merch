@@ -7,7 +7,7 @@ import {portalAdmin} from './portal-admin.mjs'
 const units=['ecom','fintech','technologies']
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v)
 function cookie(req,name){return(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name+'='))?.slice(name.length+1)||''}
-async function transaction(pool,fn){const db=await pool.connect();try{await db.query('begin');const r=await fn(db);await db.query('commit');return r}catch(e){await db.query('rollback');throw e}finally{db.release()}}
+async function transaction(pool,fn){const db=await pool.connect();try{await db.query('begin');await db.query('select pg_advisory_xact_lock(77334455)');const r=await fn(db);await db.query('commit');return r}catch(e){await db.query('rollback');throw e}finally{db.release()}}
 async function roles(pool,s){return s?.active?(await pool.query('select unit,role from demo_roles where user_id=$1',[s.user_id])).rows:[]}
 const permitted=(rs,unit)=>rs.some(r=>r.role==='super'||r.unit===unit)
 const unitList=rs=>rs.some(r=>r.role==='super')?units:rs.map(r=>r.unit)
@@ -15,15 +15,21 @@ async function move(db,variant,order,campaign,total,reserved,kind,actor){await d
 async function audit(db,kind,actor){await db.query('insert into demo_events(kind,detail,actor_id) values($1,$2,$3)',[kind,'Операция мерчшопа; без контактов, кодов и содержимого запроса.',actor])}
 async function lockCampaign(db,id){const c=(await db.query('select * from demo_campaigns where id=$1 for share',[id])).rows[0];if(!c||c.status!=='open')throw new Error('Раздача закрыта');return c}
 async function cancel(db,order,actor){
- if(order.status==='received')throw new Error('Полученный заказ нельзя отменять без отдельного процесса возврата')
+ if(['received','shipped'].includes(order.status))throw new Error('Полученный заказ нельзя отменять без отдельного процесса возврата')
  if(order.status==='cancelled')return
  const items=(await db.query('select * from demo_order_items where order_id=$1 order by variant_id',[order.id])).rows
  for(const i of items){await db.query('select id from demo_variants where id=$1 for update',[i.variant_id]);await db.query('update demo_variants set reserved=reserved-$1 where id=$2',[i.qty,i.variant_id]);await move(db,i.variant_id,order.id,order.campaign_id,0,-i.qty,'release',actor)}
  await db.query("update demo_orders set status='cancelled',pickup_cipher=null where id=$1",[order.id])
  await audit(db,'order_cancelled',actor)
 }
+async function closeParticipant(db,user){
+ const e=(await db.query('select e.* from demo_employees e join demo_users u on u.employee_id=e.id where u.id=$1 for update of e',[user])).rows[0]
+ if(!e)return
+ await db.query("update demo_employees set active=false,fulfilled_at=now(),purge_after=((now() at time zone 'Asia/Tashkent')+interval '2 months') at time zone 'Asia/Tashkent',welcome_received_at=case when email_welcome then now() else welcome_received_at end where id=$1",[e.id])
+ await db.query('delete from demo_sessions where user_id=$1',[user]);await db.query('delete from demo_invites where employee_id=$1',[e.id]);await db.query('delete from demo_email_links where employee_id=$1',[e.id]);await db.query('delete from demo_outbox where employee_id=$1',[e.id])
+}
 async function orderList(pool,s,adminUnits=null){
- const {rows}=await pool.query(`select o.id,o.user_id,o.unit,o.scope,o.status,o.created_at,o.received_at,e.full_name,
+ const {rows}=await pool.query(`select o.id,o.user_id,o.unit,o.scope,o.status,o.created_at,o.received_at,o.shipped_at,o.fulfillment,e.full_name,
    coalesce((select jsonb_agg(jsonb_build_object('variant_id',v.id,'product',v.product,'size',v.size,'color',v.color,'qty',i.qty) order by v.id) from demo_order_items i join demo_variants v on v.id=i.variant_id where i.order_id=o.id),'[]') as items
    from demo_orders o join demo_users u on u.id=o.user_id join demo_employees e on e.id=u.employee_id
    where ($2::text[] is not null and o.unit=any($2::text[])) or ($2::text[] is null and o.user_id=$1)
@@ -32,7 +38,7 @@ async function orderList(pool,s,adminUnits=null){
 }
 export async function domainRoute(req,res,url,s,h){
  const {pool,json,body,origin,event,sh,newSession}=h,path=url.pathname
- const page=['/','/shop','/admin','/data','/mailbox','/review','/access'].includes(path)
+ const page=['/','/shop','/admin','/data','/mailbox','/review','/access','/lifecycle'].includes(path)
  if(req.method==='GET'&&page){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(await readFile('web/index.html'));return true}
  if(req.method==='GET'&&['/storage-demo.js','/storage-demo.css'].includes(path)){res.writeHead(200,{'Content-Type':path.endsWith('.js')?'text/javascript':'text/css'});res.end(await readFile('web/'+path.slice(1)));return true}
  if(path==='/outbox'&&req.method==='GET'){h.redirect(res,'/mailbox');return true}
@@ -61,17 +67,18 @@ export async function domainRoute(req,res,url,s,h){
  if(await portalAdmin(req,res,url,s,{pool,json,body,origin,adminUnits}))return true
  const employee=(await pool.query('select campaign_id from demo_employees where id=$1',[s.employee_id])).rows[0]
  const campaign=employee?.campaign_id?(await pool.query('select * from demo_campaigns where id=$1',[employee.campaign_id])).rows[0]:null
- if(req.method==='GET'&&path==='/api/me'){json(res,200,{id:s.user_id,name:s.full_name,email:s.email,unit:s.unit,scope:s.scope,method:s.method,csrf:s.csrf,adminUnits,isSuper,campaign});return true}
+ if(req.method==='GET'&&path==='/api/me'){json(res,200,{id:s.user_id,name:s.full_name,email:s.email,unit:s.unit,scope:s.scope,method:s.method,legal_entity:s.legal_entity,business_unit:s.business_unit,position:s.position,phone:s.phone,csrf:s.csrf,adminUnits,isSuper,campaign});return true}
  if(req.method==='GET'&&/^\/files\/(shirt|book)\.svg$/.test(path)){res.writeHead(200,{'Content-Type':'image/svg+xml'});res.end(await readFile('/data/files/'+path.split('/').pop()));return true}
  if(req.method==='GET'&&path==='/api/catalog'){
   if(!campaign||campaign.status!=='open'){json(res,403,{error:'Нет действующей раздачи'});return true}
-  json(res,200,(await pool.query("select *,total-reserved as available from demo_variants where unit=$1 and active and scope in($2,'both') order by product,size",[s.unit,s.scope])).rows);return true
+  json(res,200,(await pool.query("select id,unit,product,scope,size,color,image_name,total,reserved,threshold,active,product_kind,total-reserved as available from demo_variants where unit=$1 and active and scope in($2,'both') order by product,size",[s.unit,s.scope])).rows);return true
  }
  if(req.method==='GET'&&path==='/api/orders'){json(res,200,await orderList(pool,s));return true}
  const receipt=path.match(/^\/api\/orders\/([a-f0-9-]{36})\/receipt\.(svg|json)$/)
  if(req.method==='GET'&&receipt){
   const o=(await pool.query('select * from demo_orders where id=$1',[receipt[1]])).rows[0]
   if(!o||(o.user_id!==s.user_id&&!permitted(rs,o.unit))){json(res,404,{error:'Не найдено'});return true}
+  if(o.fulfillment==='shipment'){json(res,404,{error:'Заказ отправляется доставкой, QR не нужен'});return true}
   if(!o.pickup_cipher){json(res,410,{error:'Код больше не нужен'});return true}
   if(receipt[2]==='json'){json(res,200,{token:unseal(o.pickup_cipher)});return true}
   const svg=await QRCode.toString(unseal(o.pickup_cipher),{type:'svg',errorCorrectionLevel:'M',margin:4})
@@ -80,7 +87,7 @@ export async function domainRoute(req,res,url,s,h){
  if(req.method==='GET'&&path.startsWith('/api/admin/')){
   if(!rs.length){json(res,403,{error:'Нужны права организатора'});return true}
   if(path==='/api/admin/orders'){json(res,200,await orderList(pool,s,adminUnits));return true}
-  if(path==='/api/admin/stocks'){json(res,200,(await pool.query('select *,total-reserved as available from demo_variants where unit=any($1) order by unit,product,size',[adminUnits])).rows);return true}
+  if(path==='/api/admin/stocks'){json(res,200,(await pool.query('select id,unit,product,scope,size,color,image_name,total,reserved,threshold,active,product_kind,total-reserved as available from demo_variants where unit=any($1) order by unit,product,size',[adminUnits])).rows);return true}
   if(path==='/api/admin/mailbox'){
    json(res,200,(await pool.query('select m.id,m.content_cipher from demo_outbox m join demo_employees e on e.id=m.employee_id where e.unit=any($1) and m.expires_at>now() order by m.created_at',[adminUnits])).rows.map(m=>({id:m.id,...JSON.parse(unseal(m.content_cipher))})));return true
   }
@@ -88,11 +95,11 @@ export async function domainRoute(req,res,url,s,h){
    if(!isSuper){json(res,403,{error:'Нужен супер администратор'});return true}
    const preview=(await pool.query('select demo_retention_preview() as p')).rows[0].p
    const campaigns=(await pool.query('select * from demo_campaigns order by unit')).rows
-   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['ФИО','email — корпоративный вход или личная почта приглашённого новичка','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу и правила по юрлицу/группе/subject','код юрлица, группы и активность — только в 15-минутной серверной сессии','товары и статусы заказа']});return true
+   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'PostgreSQL demo_variants.image_data; legacy product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['БЮ и юрлицо из Keycloak','Юрлицо, должность и телефон из HR','HMAC ПИНФЛ без открытого номера','Дата удаления источника, выдачи/отправки и плановой очистки','ФИО','email — корпоративный вход или личная почта приглашённого новичка','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу и правила по юрлицу/группе/subject','код юрлица, группы и активность — только в 15-минутной серверной сессии','товары и статусы заказа']});return true
   }
   if(path==='/api/admin/analytics'){
    const rows=(await pool.query(`select v.unit,v.product,v.size,v.color,v.total,v.reserved,
-     coalesce((select sum(i.qty) from demo_order_items i join demo_orders o on o.id=i.order_id where i.variant_id=v.id and o.status='received'),0)::integer+coalesce((select sum(a.qty) from demo_aggregates a where a.variant_id=v.id),0)::integer as issued
+     coalesce((select sum(i.qty) from demo_order_items i join demo_orders o on o.id=i.order_id where i.variant_id=v.id and o.status in('received','shipped')),0)::integer+coalesce((select sum(a.qty) from demo_aggregates a where a.variant_id=v.id),0)::integer as issued
      from demo_variants v where unit=any($1) order by unit,product,size`,[adminUnits])).rows
    if(url.searchParams.get('format')==='csv'){res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="demo-stock.csv"'});res.end('\ufeff'+[['Магазин','Товар','Размер','Цвет','Всего','Резерв','Выдано'],...rows.map(r=>Object.values(r))].map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(';')).join('\r\n'))}
    else json(res,200,rows)
@@ -104,7 +111,8 @@ export async function domainRoute(req,res,url,s,h){
  if(!equal(b.csrf,s.csrf)){json(res,403,{error:'Неверная сессия запроса'});return true}
  if(path==='/api/orders'){
   if(!campaign){json(res,403,{error:'Нет разрешения на раздачу'});return true}
-  if(Object.keys(b).some(k=>!['csrf','items','requestKey'].includes(k))||!uuid(b.requestKey)||!Array.isArray(b.items)||!b.items.length||b.items.length>3||b.items.some(x=>!uuid(x))||new Set(b.items).size!==b.items.length)throw new Error('Выберите до трёх товаров. Кадровые и контактные поля не принимаются.')
+  if(Object.keys(b).some(k=>!['csrf','items','requestKey','fulfillment'].includes(k))||!uuid(b.requestKey)||!Array.isArray(b.items)||!b.items.length||b.items.length>3||b.items.some(x=>!uuid(x))||new Set(b.items).size!==b.items.length)throw new Error('Выберите до трёх товаров. Кадровые и контактные поля не принимаются.')
+  if(b.fulfillment!==undefined&&!['office','shipment'].includes(b.fulfillment)||s.scope==='welcome'&&b.fulfillment==='shipment')throw new Error('Способ получения недоступен')
   const result=await transaction(pool,async db=>{
    await lockCampaign(db,campaign.id);if(!(await db.query('select id from demo_employees where id=$1 and active and (not email_welcome or (welcome_received_at is null and access_expires_at>now())) for update',[s.employee_id])).rows[0])throw new Error('Доступ закрыт')
    const retry=(await db.query('select id from demo_orders where user_id=$1 and request_key=$2',[s.user_id,b.requestKey])).rows[0];if(retry)return retry
@@ -113,6 +121,7 @@ export async function domainRoute(req,res,url,s,h){
    if(vs.length!==b.items.length||vs.some(v=>v.unit!==s.unit||![s.scope,'both'].includes(v.scope)||!v.active||v.total-v.reserved<1)||new Set(vs.map(v=>v.product)).size!==vs.length)throw new Error('Товар недоступен или выбран повторно')
    const id=randomUUID(),token=random()
    await db.query('insert into demo_orders(id,user_id,unit,scope,snapshot,campaign_id,request_key,pickup_hash,pickup_cipher) values($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,s.user_id,s.unit,s.scope,JSON.stringify({delivery:'office'}),campaign.id,b.requestKey,hash(token),seal(token)])
+   await db.query('update demo_orders set fulfillment=$1 where id=$2',[b.fulfillment||'office',id])
    for(const v of vs){await db.query('insert into demo_order_items values($1,$2,1)',[id,v.id]);await db.query('update demo_variants set reserved=reserved+1 where id=$1',[v.id]);await move(db,v.id,id,campaign.id,0,1,'reserve',s.user_id)}
    await audit(db,'order_created',s.user_id);return{id}
   });json(res,201,result);return true
@@ -133,18 +142,11 @@ export async function domainRoute(req,res,url,s,h){
    await lockCampaign(db,found.campaign_id)
    const o=(await db.query('select * from demo_orders where id=$1 for update',[found.id])).rows[0]
    if(o.status==='received')return{already:true,id:o.id,received_at:o.received_at}
-   if(o.status!=='ready')throw new Error('Выдавать можно только подготовленный заказ')
+   if(o.fulfillment==='shipment'||o.status!=='ready')throw new Error('Выдавать можно только подготовленный заказ')
    const items=(await db.query('select * from demo_order_items where order_id=$1 order by variant_id',[o.id])).rows
    for(const i of items){await db.query('select id from demo_variants where id=$1 for update',[i.variant_id]);await db.query('update demo_variants set total=total-$1,reserved=reserved-$1 where id=$2',[i.qty,i.variant_id]);await move(db,i.variant_id,o.id,o.campaign_id,-i.qty,-i.qty,'issue',s.user_id)}
    await db.query("update demo_orders set status='received',received_at=now(),received_by=$1,pickup_cipher=null where id=$2",[s.user_id,o.id])
-   const employee=(await db.query('select e.* from demo_employees e join demo_users u on u.employee_id=e.id where u.id=$1 for update of e',[o.user_id])).rows[0]
-   if(employee?.email_welcome){
-    await db.query('update demo_employees set active=false,welcome_received_at=now() where id=$1',[employee.id])
-    await db.query('delete from demo_sessions where user_id=$1',[o.user_id])
-    await db.query('delete from demo_email_links where employee_id=$1',[employee.id])
-    await db.query('delete from demo_outbox where employee_id=$1',[employee.id])
-   }
-   await audit(db,'order_issued',s.user_id)
+   await closeParticipant(db,o.user_id);await audit(db,'order_issued',s.user_id)
    return{already:false,id:o.id}
   });json(res,200,result);return true
  }
@@ -152,7 +154,18 @@ export async function domainRoute(req,res,url,s,h){
  if(statusRoute){
   const o=(await pool.query('select * from demo_orders where id=$1',[statusRoute[1]])).rows[0]
   if(!o||!permitted(rs,o.unit)){json(res,404,{error:'Не найдено'});return true}
-  await transaction(pool,async db=>{await lockCampaign(db,o.campaign_id);const cur=(await db.query('select status from demo_orders where id=$1 for update',[o.id])).rows[0];if(cur.status===b.status)return;if(!((cur.status==='new'&&b.status==='assembling')||(cur.status==='assembling'&&b.status==='ready')))throw new Error('Недопустимый переход');await db.query('update demo_orders set status=$1 where id=$2',[b.status,o.id])});json(res,200,{ok:true});return true
+  await transaction(pool,async db=>{
+   await lockCampaign(db,o.campaign_id);const cur=(await db.query('select * from demo_orders where id=$1 for update',[o.id])).rows[0]
+   if(cur.status===b.status)return
+   if(b.status==='shipped'&&cur.fulfillment==='shipment'&&cur.status==='assembling'){
+    const items=(await db.query('select * from demo_order_items where order_id=$1 order by variant_id',[cur.id])).rows
+    for(const i of items){await db.query('select id from demo_variants where id=$1 for update',[i.variant_id]);await db.query('update demo_variants set total=total-$1,reserved=reserved-$1 where id=$2',[i.qty,i.variant_id]);await move(db,i.variant_id,cur.id,cur.campaign_id,-i.qty,-i.qty,'shipment',s.user_id)}
+    await db.query("update demo_orders set status='shipped',shipped_at=now(),pickup_cipher=null where id=$1",[cur.id])
+    await closeParticipant(db,cur.user_id);await audit(db,'order_shipped',s.user_id);return
+   }
+   if(!((cur.status==='new'&&b.status==='assembling')||(cur.status==='assembling'&&b.status==='ready'&&cur.fulfillment==='office')))throw new Error('Недопустимый переход')
+   await db.query('update demo_orders set status=$1 where id=$2',[b.status,o.id])
+  });json(res,200,{ok:true});return true
  }
  const stockRoute=path.match(/^\/api\/admin\/stocks\/([a-f0-9-]{36})$/)
  if(stockRoute){

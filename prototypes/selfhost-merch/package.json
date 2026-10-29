@@ -12,6 +12,7 @@
     "test:e2e": "node test/e2e.mjs",
     "test:portal": "node test/portal-e2e.mjs",
     "test:welcome": "node test/welcome-email-e2e.mjs",
+    "test:lifecycle": "node test/lifecycle-e2e.mjs",
     "backup": "node scripts/backup.mjs",
     "restore": "node scripts/restore.mjs"
   },

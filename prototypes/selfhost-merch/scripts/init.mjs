@@ -1,14 +1,15 @@
 import { mkdir, writeFile, access, chmod, readFile } from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import {portalPeople} from '../portal-directory.mjs'
+import {portalPeople,legalEntities} from '../portal-directory.mjs'
 const dir = fileURLToPath(new URL('../.local/', import.meta.url))
 await mkdir(dir, { recursive: true, mode: 0o700 })
 let existing=false
 try { await access(dir + 'demo.env'); existing=true } catch { /* fresh demo */ }
-if(existing&&!process.argv.includes('--refresh-mock-realm')){console.log('Existing demo configuration retained. See README for a full reset.');process.exit(0)}
+if(existing&&!process.argv.includes('--refresh-mock-realm')){const path=dir+'demo.env';let content=await readFile(path,'utf8');if(!content.includes('DEMO_LIFECYCLE_KEY='))await writeFile(path,content+'DEMO_LIFECYCLE_KEY='+randomBytes(32).toString('hex')+'\n',{mode:0o600});console.log('Existing demo configuration retained. See README for a full reset.');process.exit(0)}
 const secret = () => randomBytes(32).toString('hex')
-const env = existing?Object.fromEntries((await readFile(dir+'demo.env','utf8')).trim().split('\n').map(x=>{const i=x.indexOf('=');return[x.slice(0,i),x.slice(i+1)]})):{ DEMO_DB_PASSWORD: secret(), DEMO_MIGRATOR_PASSWORD: secret(), DEMO_RETENTION_PASSWORD: secret(), DEMO_DATA_KEY: secret(), DEMO_BACKUP_KEY: secret(), DEMO_DB_ADMIN_PASSWORD: secret(), DEMO_KC_ADMIN_PASSWORD: secret(), DEMO_CLIENT_SECRET: secret(), DEMO_GUEST_TOKEN: secret(), DEMO_SESSION_PEPPER: secret() }
+const env = existing?Object.fromEntries((await readFile(dir+'demo.env','utf8')).trim().split('\n').map(x=>{const i=x.indexOf('=');return[x.slice(0,i),x.slice(i+1)]})):{ DEMO_LIFECYCLE_KEY:secret(), DEMO_DB_PASSWORD: secret(), DEMO_MIGRATOR_PASSWORD: secret(), DEMO_RETENTION_PASSWORD: secret(), DEMO_DATA_KEY: secret(), DEMO_BACKUP_KEY: secret(), DEMO_DB_ADMIN_PASSWORD: secret(), DEMO_KC_ADMIN_PASSWORD: secret(), DEMO_CLIENT_SECRET: secret(), DEMO_GUEST_TOKEN: secret(), DEMO_SESSION_PEPPER: secret() }
+if(!env.DEMO_LIFECYCLE_KEY)env.DEMO_LIFECYCLE_KEY=secret()
 const password = existing?JSON.parse(await readFile(dir+'accounts.json','utf8')).password:'Demo-' + randomBytes(12).toString('base64url')
 const people = portalPeople
 const realm = {
@@ -21,12 +22,12 @@ const realm = {
     defaultClientScopes: ['profile', 'email'], optionalClientScopes: [],
     attributes: { 'pkce.code.challenge.method': 'S256', 'backchannel.logout.url': 'http://app:3280/auth/backchannel-logout', 'backchannel.logout.session.required': 'true' },
     protocolMappers: [
-      ['legal_entity_code','String',false],['merch_groups','String',true],['employee_active','boolean',false]
+      ['legal_entity_code','String',false],['merch_groups','String',true],['employee_active','boolean',false],['business_unit','String',false],['legal_entity_name','String',false],['delete_at','String',false]
     ].map(([name,type,multi])=>({name,protocol:'openid-connect',protocolMapper:'oidc-usermodel-attribute-mapper',consentRequired:false,
       config:{'user.attribute':name,'claim.name':name,'jsonType.label':type,'multivalued':String(multi),'id.token.claim':'true','access.token.claim':'false','userinfo.token.claim':'false'}}))
   }],
   users: people.map(p => ({ id: p.subject, username: p.username, email: p.email, emailVerified: true, enabled: p.active, firstName: p.firstName, lastName: p.lastName,
-    attributes: { legal_entity_code: [p.legalEntity], merch_groups: p.groups, employee_active: [String(p.active)] },
+    attributes: { legal_entity_code: [p.legalEntity],business_unit:[p.unit],legal_entity_name:[legalEntities.find(x=>x.code===p.legalEntity).name], merch_groups: p.groups, employee_active: [String(p.active)] },
     credentials: [{ type: 'password', value: password, temporary: false }] }))
 }
 await writeFile(dir + 'realm.json', JSON.stringify(realm, null, 2), { mode: 0o644 })

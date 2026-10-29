@@ -5,7 +5,7 @@ import {hash,sessionHash} from './security.mjs'
 import {seal} from './crypto.mjs'
 const pool=new pg.Pool({host:'db',database:'merch_selfhost_demo',user:'merch_migrator',password:process.env.DEMO_MIGRATOR_PASSWORD})
 for(const dir of ['/data/files','/data/ledger']){await mkdir(dir,{recursive:true});await chown(dir,1000,1000)}
-await pool.query(await readFile('schema.sql','utf8'));await pool.query(await readFile('domain.sql','utf8'))
+await pool.query(await readFile('schema.sql','utf8'));await pool.query(await readFile('domain.sql','utf8'));await pool.query(await readFile('lifecycle.sql','utf8'))
 const existing=(await pool.query('select id from demo_installation limit 1')).rows[0]
 if(existing){
   const ledger=JSON.parse(await readFile('/data/ledger/deletions.json','utf8'))
@@ -49,4 +49,5 @@ if(existing){
 for(const [name,icon]of [['shirt.svg','МЕРЧ'],['book.svg','БЛОКНОТ']]){
  try{await access('/data/files/'+name)}catch{await writeFile('/data/files/'+name,`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="#eee5ff"/><rect x="150" y="70" width="300" height="250" rx="24" fill="#7700ff"/><text x="300" y="210" text-anchor="middle" font-family="sans-serif" font-size="36" fill="white">${icon}</text></svg>`);await chown('/data/files/'+name,1000,1000)}
 }
+for(const name of ['shirt.svg','book.svg'])await pool.query('update demo_variants set image_data=$1,image_mime=$2 where image_name=$3 and image_data is null',[await readFile('/data/files/'+name),'image/svg+xml',name])
 console.log('Selfhost demo initialized. No production data, SMTP or corporate connections.');await pool.end()
