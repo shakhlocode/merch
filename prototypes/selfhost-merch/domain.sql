@@ -8,6 +8,18 @@ alter table demo_employees add column if not exists campaign_id uuid references 
 alter table demo_employees add column if not exists portal_managed boolean not null default false;
 -- Trusted authorization attributes live only as long as the server session.
 alter table demo_sessions add column if not exists portal_claims jsonb;
+alter table demo_employees add column if not exists email_welcome boolean not null default false;
+alter table demo_employees add column if not exists email_verified_at timestamptz;
+alter table demo_employees add column if not exists access_expires_at timestamptz;
+alter table demo_employees add column if not exists welcome_received_at timestamptz;
+create unique index if not exists demo_welcome_email_unique on demo_employees(lower(email)) where email_welcome;
+alter table demo_sessions drop constraint if exists demo_sessions_method_check;
+alter table demo_sessions add constraint demo_sessions_method_check check(method in('oidc','identifier','email'));
+create table if not exists demo_email_links(
+ id uuid primary key,employee_id uuid not null references demo_employees on delete cascade,
+ token_hash text unique not null,expires_at timestamptz not null,used_at timestamptz,created_at timestamptz not null default now()
+);
+create table if not exists demo_email_throttles(key_hash text primary key,hits integer not null,expires_at timestamptz not null);
 create table if not exists demo_portal_rules(
  id uuid primary key, campaign_id uuid not null references demo_campaigns,
  kind text not null check(kind in('person','legal_entity','group')), value text not null,
@@ -98,6 +110,8 @@ begin
    update demo_campaigns set status='closed',closed_at=coalesce(closed_at,now()),purged_at=coalesce(purged_at,now()) where id=c.id;
    n:=n+1;
  end loop;
+ delete from demo_email_links where expires_at<=now();
+ delete from demo_email_throttles where expires_at<=now();
  delete from demo_sessions where expires_at<=now();
  delete from demo_flows where expires_at<=now();
  delete from demo_logout_tokens where expires_at<=now();
@@ -117,3 +131,5 @@ grant insert on demo_order_items,demo_stock_movements,demo_events to merch_app;
 grant usage,select on all sequences in schema public to merch_app;
 grant execute on function demo_retention_preview() to merch_app,merch_retention;
 grant execute on function demo_run_retention(uuid[]) to merch_retention;
+
+grant insert,update,delete on demo_email_links,demo_email_throttles to merch_app;

@@ -11,7 +11,7 @@ docker(['stop','app','retention'])
 docker(['exec','-T','db','psql','-U','postgres','-d','merch_selfhost_demo','--single-transaction','-v','ON_ERROR_STOP=1'],Buffer.from(backup.database,'base64'))
 // A backup can predate logout, invitation activation or physical issuance.
 // Fail closed: never silently resurrect old credentials or reopen distribution.
-docker(['exec','-T','db','psql','-U','postgres','-d','merch_selfhost_demo','-v','ON_ERROR_STOP=1','-c',"begin; delete from demo_sessions; delete from demo_flows; delete from demo_invites; delete from demo_outbox; update demo_campaigns set status='closed',closed_at=coalesce(closed_at,now()); update demo_employees set active=false where campaign_id is not null; commit;"])
+docker(['exec','-T','db','psql','-U','postgres','-d','merch_selfhost_demo','-v','ON_ERROR_STOP=1','-c',"begin; delete from demo_sessions; delete from demo_email_links; delete from demo_email_throttles; delete from demo_flows; delete from demo_invites; delete from demo_outbox; update demo_campaigns set status='closed',closed_at=coalesce(closed_at,now()); update demo_employees set active=false where campaign_id is not null; commit;"])
 const archive=Buffer.from(backup.files,'base64')
 const listing=docker(['run','--rm','--no-deps','-T','--entrypoint','tar','setup','-tf','-'],archive).toString().trim().split('\n')
 if(listing.some(x=>!['./','./shirt.svg','./book.svg'].includes(x)))throw new Error('Unexpected file path in demo backup; service remains stopped')

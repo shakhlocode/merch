@@ -88,7 +88,7 @@ export async function domainRoute(req,res,url,s,h){
    if(!isSuper){json(res,403,{error:'Нужен супер администратор'});return true}
    const preview=(await pool.query('select demo_retention_preview() as p')).rows[0].p
    const campaigns=(await pool.query('select * from demo_campaigns order by unit')).rows
-   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['ФИО','email — только корпоративный вход','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу и правила по юрлицу/группе/subject','код юрлица, группы и активность — только в 15-минутной серверной сессии','товары и статусы заказа']});return true
+   json(res,200,{...preview,campaigns,storage:{database:'merch_selfhost_demo',files:'product-files /data/files',ledger:'deletion-ledger /data/ledger',mail:'encrypted demo_outbox; no SMTP',identity:'separate synthetic Keycloak volume'},fields:['ФИО','email — корпоративный вход или личная почта приглашённого новичка','iss + sub — только корпоративный вход','хэш приглашения/идентификатора — гостевой вход','случайный ID аккаунта','разрешение на раздачу и правила по юрлицу/группе/subject','код юрлица, группы и активность — только в 15-минутной серверной сессии','товары и статусы заказа']});return true
   }
   if(path==='/api/admin/analytics'){
    const rows=(await pool.query(`select v.unit,v.product,v.size,v.color,v.total,v.reserved,
@@ -106,7 +106,7 @@ export async function domainRoute(req,res,url,s,h){
   if(!campaign){json(res,403,{error:'Нет разрешения на раздачу'});return true}
   if(Object.keys(b).some(k=>!['csrf','items','requestKey'].includes(k))||!uuid(b.requestKey)||!Array.isArray(b.items)||!b.items.length||b.items.length>3||b.items.some(x=>!uuid(x))||new Set(b.items).size!==b.items.length)throw new Error('Выберите до трёх товаров. Кадровые и контактные поля не принимаются.')
   const result=await transaction(pool,async db=>{
-   await lockCampaign(db,campaign.id);await db.query('select id from demo_employees where id=$1 and active for update',[s.employee_id])
+   await lockCampaign(db,campaign.id);if(!(await db.query('select id from demo_employees where id=$1 and active and (not email_welcome or (welcome_received_at is null and access_expires_at>now())) for update',[s.employee_id])).rows[0])throw new Error('Доступ закрыт')
    const retry=(await db.query('select id from demo_orders where user_id=$1 and request_key=$2',[s.user_id,b.requestKey])).rows[0];if(retry)return retry
    if((await db.query("select id from demo_orders where user_id=$1 and campaign_id=$2 and status<>'cancelled'",[s.user_id,campaign.id])).rows[0])throw new Error('Для этой раздачи заказ уже оформлен')
    const vs=(await db.query('select * from demo_variants where id=any($1::uuid[]) order by id for update',[b.items])).rows
@@ -137,6 +137,13 @@ export async function domainRoute(req,res,url,s,h){
    const items=(await db.query('select * from demo_order_items where order_id=$1 order by variant_id',[o.id])).rows
    for(const i of items){await db.query('select id from demo_variants where id=$1 for update',[i.variant_id]);await db.query('update demo_variants set total=total-$1,reserved=reserved-$1 where id=$2',[i.qty,i.variant_id]);await move(db,i.variant_id,o.id,o.campaign_id,-i.qty,-i.qty,'issue',s.user_id)}
    await db.query("update demo_orders set status='received',received_at=now(),received_by=$1,pickup_cipher=null where id=$2",[s.user_id,o.id])
+   const employee=(await db.query('select e.* from demo_employees e join demo_users u on u.employee_id=e.id where u.id=$1 for update of e',[o.user_id])).rows[0]
+   if(employee?.email_welcome){
+    await db.query('update demo_employees set active=false,welcome_received_at=now() where id=$1',[employee.id])
+    await db.query('delete from demo_sessions where user_id=$1',[o.user_id])
+    await db.query('delete from demo_email_links where employee_id=$1',[employee.id])
+    await db.query('delete from demo_outbox where employee_id=$1',[employee.id])
+   }
    await audit(db,'order_issued',s.user_id)
    return{already:false,id:o.id}
   });json(res,200,result);return true
@@ -165,6 +172,7 @@ export async function domainRoute(req,res,url,s,h){
   await transaction(pool,async db=>{
    await lockCampaign(db,e.campaign_id)
    let message
+   if(e.email_welcome)throw new Error('Используйте приглашение Welcome pack по личной почте')
    if(e.corporate_subject){message={to:e.email,subject:'Доступ к тестовой раздаче',body:'Подтвердите личность корпоративным входом.',url:h.config.base+'/auth/login'}}
    else{
     if(typeof b.identifier!=='string'||b.identifier.trim().length<3||b.identifier.length>128)throw new Error('Укажите идентификатор')

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { domainRoute } from './domain.mjs'
+import {welcomeEmailRoute} from './welcome-email.mjs'
 import {portalEmployee,portalGrant} from './portal-access.mjs'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { assertDemoConfig, corporateClaims, equal, hash, pkce, random, sessionHash, validateOrder } from './security.mjs'
@@ -48,9 +49,10 @@ function origin(req) { if (req.headers.origin !== config.base) throw new Error('
 async function session(req) {
   const token = cookie(req,'merch_storage_session')
   if (!/^[\w-]{43}$/.test(token)) return null
-  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.campaign_id,e.portal_managed,e.active,false as access_used
+  const {rows} = await pool.query(`select s.*,u.employee_id,u.issuer as identity_issuer,u.subject,e.full_name,e.email,e.unit,e.scope,e.campaign_id,e.portal_managed,e.email_welcome,e.welcome_received_at,e.access_expires_at,e.active,false as access_used
     from demo_sessions s join demo_users u on u.id=s.user_id join demo_employees e on e.id=u.employee_id where s.token_hash=$1 and s.expires_at>now()`,[sh(token)])
   const s=rows[0]
+  if(s?.email_welcome&&(!s.active||s.welcome_received_at||!s.access_expires_at||new Date(s.access_expires_at)<=new Date()))return null
   if(s?.portal_managed){
     if(!s.portal_claims)return null
     const grant=await portalGrant(pool,s.portal_claims)
@@ -87,7 +89,9 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
   const url=new URL(req.url,config.base),path=url.pathname
   try {
-    if(await domainRoute(req,res,url,await session(req),{pool,config,html,json,redirect,body,origin,event,newSession,sh,esc}))return
+    const currentSession=await session(req)
+    if(await welcomeEmailRoute(req,res,url,currentSession,{pool,config,json,body,origin,newSession}))return
+    if(await domainRoute(req,res,url,currentSession,{pool,config,html,json,redirect,body,origin,event,newSession,sh,esc}))return
     if(req.method==='GET'&&path==='/style.css'){res.writeHead(200,{'Content-Type':'text/css'});return res.end(css)}
     if(req.method==='GET'&&path==='/ui.js'){res.writeHead(200,{'Content-Type':'text/javascript'});return res.end(ui)}
     if(req.method==='GET'&&path==='/health'){
