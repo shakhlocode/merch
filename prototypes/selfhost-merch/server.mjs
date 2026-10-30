@@ -1,4 +1,5 @@
 import http from 'node:http'
+import {attachAudit} from './audit.mjs'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
@@ -92,8 +93,10 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer')
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
   const url=new URL(req.url,config.base),path=url.pathname
+  const identifyAudit=attachAudit(req,res,path)
   try {
     const currentSession=await session(req)
+    identifyAudit?.(currentSession?.user_id)
     if(await lifecycleRoute(req,res,url,currentSession,{pool,config,json,body,origin}))return
     if(await welcomeEmailRoute(req,res,url,currentSession,{pool,config,json,body,origin,newSession}))return
     if(await domainRoute(req,res,url,currentSession,{pool,config,html,json,redirect,body,origin,event,newSession,sh,esc}))return
@@ -173,6 +176,11 @@ const server=http.createServer(async(req,res)=>{
     return json(res,path==='/health'?503:400,{error:'Запрос отклонён. Проверьте данные, разрешения и срок действия приглашения.'})
   }
 })
+// Bound slow/incomplete HTTP requests; ingress must additionally enforce rate and connection limits.
+server.requestTimeout=30_000
+server.headersTimeout=10_000
+server.keepAliveTimeout=5_000
+server.maxHeadersCount=64
 await initialize()
 server.listen(3280,'0.0.0.0',()=>console.log('Isolated synthetic identity demo started; no corporate services or SMTP configured.'))
 process.on('SIGTERM',()=>server.close(()=>pool.end().then(()=>process.exit(0))))

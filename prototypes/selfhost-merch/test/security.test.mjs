@@ -65,3 +65,17 @@ test('Source events require a fresh, matching keyed signature',()=>{
  const time=String(Date.now()),b={id:'synthetic',kind:'deleted'},req={headers:{'x-event-timestamp':time,'x-event-signature':eventSignature(time,b)}}
  assert(verifyEvent(req,b));assert(!verifyEvent(req,{...b,kind:'updated'}));assert(!verifyEvent({headers:{...req.headers,'x-event-timestamp':'0'}},b))
 })
+
+test('Audit excludes caller secrets and emits one correlated denial',async()=>{
+ const {EventEmitter}=await import('node:events');const {attachAudit,auditCategory}=await import('../audit.mjs')
+ const res=new EventEmitter();const headers={};res.setHeader=(k,v)=>headers[k]=v;res.statusCode=403;res.writableFinished=true;const lines=[]
+ const identify=attachAudit({method:'POST',url:'/api/admin/hr?secret=SECRET',headers:{authorization:'SECRET'},body:'SECRET'},res,'/api/admin/hr',line=>lines.push(line))
+ identify('30000000-0000-4000-8000-000000000001');res.emit('finish');res.emit('close')
+ assert.equal(lines.length,1);assert(!lines[0].includes('SECRET'));const r=JSON.parse(lines[0]);assert.equal(r.category,'administration');assert.equal(r.outcome,'rejected');assert.equal(r.actor_id,'30000000-0000-4000-8000-000000000001');assert.equal(r.request_id,headers['X-Request-ID']);assert.equal(auditCategory('/style.css'),null)
+})
+test('Audit records abort without untrusted identity or method',async()=>{
+ const {EventEmitter}=await import('node:events');const {attachAudit}=await import('../audit.mjs')
+ const res=new EventEmitter();res.setHeader=()=>{};res.statusCode=200;res.writableFinished=false;const lines=[]
+ const identify=attachAudit({method:'SECRET'},res,'/auth/callback',line=>lines.push(line));identify('fake@example.invalid');res.emit('close');res.emit('finish')
+ const r=JSON.parse(lines[0]);assert.equal(lines.length,1);assert.equal(r.status,499);assert.equal(r.actor_id,null);assert.equal(r.method,'OTHER')
+})

@@ -1,6 +1,12 @@
 name: merch-selfhost-demo
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 services:
   db:
+    logging: *bounded-logging
     image: postgres:17-bookworm
     environment:
       POSTGRES_DB: merch_selfhost_demo
@@ -19,6 +25,7 @@ services:
       retries: 30
     networks: [isolated]
   keycloak:
+    logging: *bounded-logging
     image: quay.io/keycloak/keycloak:26.4.2
     command: [start-dev, --import-realm, --hostname=http://127.0.0.1:8280]
     environment:
@@ -36,6 +43,7 @@ services:
       - identity-provider:/opt/keycloak/data
     networks: [isolated]
   setup:
+    logging: *bounded-logging
     build: .
     user: "0"
     command: [node, migrate.mjs]
@@ -51,6 +59,7 @@ services:
       - deletion-ledger:/data/ledger
     networks: [isolated]
   retention:
+    logging: *bounded-logging
     build: .
     command: [node, worker.mjs]
     environment:
@@ -70,6 +79,7 @@ services:
       retries: 30
     networks: [isolated]
   app:
+    logging: *bounded-logging
     build: .
     environment:
       DEMO_LIFECYCLE_KEY: ${DEMO_LIFECYCLE_KEY:?Run npm run init}
