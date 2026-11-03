@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     if (employeeError) {
       return NextResponse.json(
-        { error: employeeError.message },
+        { error: publicError(employeeError) },
         { status: 400 }
       )
     }
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (body.action === 'archive_product') {
       if (!body.product_id || typeof body.is_active !== 'boolean') return NextResponse.json({ error: 'Укажите товар и действие архива' }, { status: 400 })
       const { error } = await supabase.from('products').update({ is_active: body.is_active }).eq('id', body.product_id).select('id').single()
-      return error ? NextResponse.json({ error: error.message }, { status: 400 }) : NextResponse.json({ ok: true })
+      return error ? NextResponse.json({ error: publicError(error) }, { status: 400 }) : NextResponse.json({ ok: true })
     }
 
     if (body.action === 'create_product') {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: publicError(error) }, { status: 400 })
       }
 
       return NextResponse.json({ ok: true, product: data })
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: publicError(error) }, { status: 400 })
       }
 
       return NextResponse.json({ ok: true, product: data })
@@ -177,49 +178,19 @@ export async function POST(request: NextRequest) {
 
       const initialQty = Number(body.initial_qty ?? 0)
 
-      if (!Number.isInteger(initialQty) || initialQty < 0) {
+      if (!Number.isInteger(initialQty) || initialQty < 0 || initialQty > 2147483647) {
         return NextResponse.json({ error: 'Начальный остаток должен быть целым неотрицательным числом' }, { status: 400 })
       }
 
-      const { data: variant, error: variantError } = await supabase
-        .from('product_variants')
-        .insert({
-          product_id: body.product_id,
-          size: cleanText(body.size),
-          color: cleanText(body.color),
-          sku,
-          total_qty: 0,
-          reserved_qty: 0,
-          is_active: body.is_active ?? true,
-        })
-        .select('id')
-        .single()
-
-      if (variantError) {
-        return NextResponse.json(
-          { error: variantError.message },
-          { status: 400 }
-        )
-      }
-
-      if (initialQty > 0) {
-        const { error: stockError } = await supabase
-          .from('stock_movements')
-          .insert({
-            variant_id: variant.id,
-            movement_type: 'income',
-            qty: initialQty,
-            comment: 'Первичное поступление при создании варианта',
-            created_by: user.id,
-          })
-
-        if (stockError) {
-          return NextResponse.json(
-            { error: stockError.message },
-            { status: 400 }
-          )
-        }
-      }
+      const { data: variant, error } = await supabase.rpc('admin_create_variant', {
+        p_product_id: body.product_id,
+        p_size: cleanText(body.size),
+        p_color: cleanText(body.color),
+        p_sku: sku,
+        p_initial_qty: initialQty,
+        p_is_active: body.is_active ?? true,
+      })
+      if (error) return NextResponse.json({ error: publicError(error) }, { status: 400 })
 
       return NextResponse.json({ ok: true, variant })
     }
@@ -258,7 +229,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: publicError(error) }, { status: 400 })
       }
 
       return NextResponse.json({ ok: true, variant: data })
@@ -325,7 +296,7 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
 
     return NextResponse.json({ error: message }, { status: 500 })
   }

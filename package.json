@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "db:build": "node scripts/build-database.mjs",
     "db:test": "node scripts/test-database.mjs",
-    "types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > lib/supabase/types.ts"
+    "types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > lib/supabase/types.ts",
+    "test:security": "node --test tests/security-review.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.0",
@@ -18,12 +19,13 @@
     "@zxing/browser": "0.2.1",
     "@zxing/library": "0.23.0",
     "jsbarcode": "3.12.3",
-    "next": "^16.2.6",
+    "next": "16.4.4",
     "pizzip": "^3.2.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "read-excel-file": "9.3.12"
+    "read-excel-file": "9.3.12",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@types/jsbarcode": "3.11.4",
@@ -31,10 +33,10 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
-    "eslint": "^8",
-    "eslint-config-next": "^14.2.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.4",
     "postcss": "^8",
-    "supabase": "^1.178.0",
+    "supabase": "3.0.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5"
   }

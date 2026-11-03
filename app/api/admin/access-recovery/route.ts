@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!employee?.external_id) return NextResponse.json({ error: 'Для восстановления нужен идентификатор сотрудника' }, { status: 400 })
     const id = randomUUID(), token = randomBytes(32).toString('hex')
     const { data, error } = await client.rpc('admin_recover_browser_access', { p_employee_id: body.employee_id, p_id: id, p_token_hash: hashSecret(token), p_code_hash: identifierHash(id, employee.external_id) })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return NextResponse.json({ error: publicError(error) }, { status: 400 })
     return NextResponse.json({ url: appOrigin() + (data.store_scope === 'welcome' ? '/welcome/invite#' : '/invite#') + token }, { headers: { 'Cache-Control': 'no-store' } })
   } catch { return NextResponse.json({ error: 'Не удалось восстановить доступ' }, { status: 400 }) }
 }

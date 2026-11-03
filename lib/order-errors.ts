@@ -1,3 +1,4 @@
+import { publicError } from './security/public-error.mjs'
 const messages: Record<string, string> = {
   pvz_identifier_only: 'Получение в своём ПВЗ доступно только по персональному приглашению с идентификатором.',
   invalid_pvz_code: 'Укажите код своего ПВЗ — до 80 символов.',
@@ -24,4 +25,4 @@ const messages: Record<string, string> = {
   contact_not_admin: 'Ответственным может быть только активный администратор.',
   order_not_found: 'Заказ не найден.',
 }
-export function orderError(message: string) { return messages[message] ?? message }
+export function orderError(message: string) { return messages[message] ?? publicError(message) }

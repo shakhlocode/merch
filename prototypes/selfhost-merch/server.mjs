@@ -1,6 +1,5 @@
 import http from 'node:http'
 import {attachAudit} from './audit.mjs'
-import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { domainRoute } from './domain.mjs'
@@ -9,7 +8,7 @@ import {sourceKey} from './lifecycle-auth.mjs'
 import {welcomeEmailRoute} from './welcome-email.mjs'
 import {portalEmployee,portalGrant} from './portal-access.mjs'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
-import { assertDemoConfig, corporateClaims, equal, hash, pkce, random, sessionHash, validateOrder } from './security.mjs'
+import { assertDemoConfig, corporateClaims, equal, hash, pkce, random, sessionHash } from './security.mjs'
 
 const config = assertDemoConfig(process.env)
 // No production URL, SMTP client, Supabase SDK, or corporate API exists in this process.
@@ -18,7 +17,6 @@ const pepper = process.env.DEMO_SESSION_PEPPER
 const internal = process.env.DEMO_IDP_INTERNAL_ORIGIN
 const clientId = process.env.DEMO_CLIENT_ID
 const callback = config.base + '/auth/callback'
-const inviteId = '40000000-0000-4000-8000-000000000001'
 const jwks = createRemoteJWKSet(new URL(internal + '/realms/merch-storage-demo/protocol/openid-connect/certs'), { timeoutDuration:4000 })
 const events = {
   login_started:'Браузер → тестовый Keycloak: openid profile email, state, nonce, PKCE. Пароль получает только Keycloak.',

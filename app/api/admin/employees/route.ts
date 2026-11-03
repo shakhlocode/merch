@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { createInvitations } from '@/lib/invitations'
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (employeeError) {
-      return NextResponse.json({ error: employeeError.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(employeeError) }, { status: 400 })
     }
 
     if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (body.action === 'import_employees') {
       if (!Array.isArray(body.rows) || body.rows.length < 1 || body.rows.length > 2000) return NextResponse.json({ error: 'Загрузите от 1 до 2000 строк' }, { status: 400 })
       let policy
-      try { policy = accessFields(body.access_mode, body.access_until) } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
+      try { policy = accessFields(body.access_mode, body.access_until) } catch (e) { return NextResponse.json({ error: publicError(e) }, { status: 400 }) }
       const { data, error } = await supabase.rpc('admin_import_employees', { p_rows: body.rows.map(row => ({ ...row, ...policy, invite_mode: body.invitation || 'none',invite_scope:body.invite_scope||'catalog' })) })
       return error ? NextResponse.json({ error: mapError(error.message) }, { status: 400 }) : NextResponse.json({ ok: true, ...data })
     }
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (body.invitation === 'code' && !cleanText(body.external_id)) return NextResponse.json({ error: 'Для личной ссылки нужен идентификатор сотрудника' }, { status: 400 })
     let policy = {}
     try { if (body.access_mode !== undefined || body.action === 'create_employee') policy = accessFields(body.access_mode, body.access_until, body.action === 'update_employee') }
-    catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }) }
+    catch (e) { return NextResponse.json({ error: publicError(e) }, { status: 400 }) }
     const fields = {
       ...policy,
       ...(body.action==='create_employee'?{store_scope:body.invite_scope||'catalog'}:{}),
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, employee: data, invitations: body.invitation && body.invitation !== 'none' ? await createInvitations(supabase, [data.id], body.invitation,body.invite_scope||'catalog') : [] }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Неизвестная ошибка'
+    const message = error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
@@ -147,5 +148,5 @@ function mapError(message: string) {
   if (message.includes('employee_directory_email_lower_key') || message.includes('duplicate key')) {
     return 'Этот сотрудник уже добавлен в один из магазинов. Один сотрудник может иметь доступ только к одному магазину.'
   }
-  return message
+  return publicError(message)
 }

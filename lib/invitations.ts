@@ -1,3 +1,4 @@
+import { publicError } from './security/public-error.mjs'
 import 'server-only'
 import type { StoreScope } from '@/lib/store-content'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -77,7 +78,7 @@ export async function createInvitations(
         employee_id,
         channel,
         error:
-          e instanceof Error ? e.message : 'Не удалось создать приглашение',
+          publicError(e),
       })
     }
   }

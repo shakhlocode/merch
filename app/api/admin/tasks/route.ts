@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin'
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (typeof b.id !== 'string')
     return NextResponse.json({ error: 'Не указана задача' }, { status: 400 })
   const { error } = await s.rpc('admin_contact_visit', { p_id: b.id })
-  return NextResponse.json(error ? { error: error.message } : { ok: true }, {
+  return NextResponse.json(error ? { error: publicError(error) } : { ok: true }, {
     status: error ? 400 : 200,
   })
 }

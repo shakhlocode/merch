@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/admin'
@@ -21,7 +22,7 @@ export async function GET() {
     .order('created_at', { ascending: false })
     .limit(200)
   return error
-    ? NextResponse.json({ error: error.message }, { status: 400 })
+    ? NextResponse.json({ error: publicError(error) }, { status: 400 })
     : NextResponse.json({
         email_enabled: invitationEmailEnabled(),
         invitations: data,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       .gt('expires_at', new Date().toISOString())
       .limit(5)
     if (error)
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(error) }, { status: 400 })
     let sent = 0,
       failed = 0
     for (const job of jobs || []) {

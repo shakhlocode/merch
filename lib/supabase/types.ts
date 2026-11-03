@@ -573,6 +573,10 @@ export type Database = {
         Args: { p_rows: { email: string; full_name: string; external_id: string | null }[] }
         Returns: { added: number; skipped: number; employee_ids: string[] }
       }
+      admin_create_variant: {
+        Args: { p_product_id: string; p_size: string | null; p_color: string | null; p_sku: string; p_initial_qty: number; p_is_active: boolean }
+        Returns: { id: string }
+      }
       admin_create_product: {
         Args: { p_name: string; p_description: string | null; p_image_url: string | null; p_placement: string; p_variants: { size: string; color: string; qty: number }[] }
         Returns: { id: string }

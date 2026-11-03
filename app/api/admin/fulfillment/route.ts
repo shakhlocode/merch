@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { defaultStoreContent, type StoreContent } from '@/lib/store-content'
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
     changes[key] = b.text.trim()
     const { error } = await s.from('merch_settings').update(changes).eq('id', 1)
-    return NextResponse.json(error ? { error: error.message } : { ok: true }, {
+    return NextResponse.json(error ? { error: publicError(error) } : { ok: true }, {
       status: error ? 400 : 200,
     })
   }
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', 1)
-    return NextResponse.json(error ? { error: error.message } : { ok: true }, {
+    return NextResponse.json(error ? { error: publicError(error) } : { ok: true }, {
       status: error ? 400 : 200,
     })
   }
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
           .is('deleted_at', null)
       : s.from('pickup_offices').insert(fields)
     const { data: record, error } = await q.select('id').single()
-    return NextResponse.json(error ? { error: error.message } : { ok: true, id:record?.id }, {
+    return NextResponse.json(error ? { error: publicError(error) } : { ok: true, id:record?.id }, {
       status: error ? 400 : 200,
     })
   }

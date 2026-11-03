@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     if (passwordError) {
       return NextResponse.json(
-        { error: passwordError.message },
+        { error: publicError(passwordError) },
         { status: 400 }
       )
     }
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (markError) {
       return NextResponse.json(
-        { error: markError.message },
+        { error: publicError(markError) },
         { status: 400 }
       )
     }
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
 
     return NextResponse.json(
       { error: message },

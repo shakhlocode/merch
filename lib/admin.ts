@@ -1,3 +1,4 @@
+import { publicError } from './security/public-error.mjs'
 import type { createClient } from '@/lib/supabase/server'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
@@ -26,7 +27,7 @@ export async function requireAdmin(supabase: SupabaseServerClient) {
     return {
       ok: false as const,
       status: 400,
-      error: employeeError.message,
+      error: publicError(employeeError),
     }
   }
 

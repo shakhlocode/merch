@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (accessError) {
-      return NextResponse.json({ error: accessError.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(accessError) }, { status: 400 })
     }
 
     const access = Array.isArray(accessRows) ? accessRows[0] : null
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
       .in('id', variantIds)
 
     if (variantsError) {
-      return NextResponse.json({ error: variantsError.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(variantsError) }, { status: 400 })
     }
 
     if ((variants ?? []).length !== variantIds.length) {
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: publicError(error) },
         { status: 400 }
       )
     }
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
 
     return NextResponse.json(
       { error: message },

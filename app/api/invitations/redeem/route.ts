@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { privilegedClient, isolatedAuthClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     )
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Не удалось войти' },
+      { error: publicError(e) },
       { status: 400 }
     )
   }

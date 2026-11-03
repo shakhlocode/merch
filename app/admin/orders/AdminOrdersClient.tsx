@@ -552,9 +552,10 @@ function OrderDetail({ order, variants, admins, events,task }: { task?:VisitRemi
         <div class="loc">Где лежит: <b>${escapeHtml(storageLocation || '—')}</b></div>
         ${barcode}
       </div>
-      <button onclick="window.print()">Печать</button>
+      <button id="print-label">Печать</button>
       </body></html>`)
     win.document.close()
+    win.document.getElementById('print-label')?.addEventListener('click', () => win.print())
   }
 
   return (

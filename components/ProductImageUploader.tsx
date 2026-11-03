@@ -88,7 +88,7 @@ export default function ProductImageUploader({
           <div>
             <b>Фото не загружено</b>
             <span className="block-mt-2">
-              Выберите файл JPG, PNG, WEBP или GIF до 5 MB.
+              Выберите JPG, PNG, WEBP или GIF до 5 МБ. GIF сохраняется как статичное фото.
             </span>
           </div>
         </div>

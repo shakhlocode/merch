@@ -5,6 +5,9 @@ import ShopProvider from '@/components/ShopProvider'
 import { createClient } from '@/lib/supabase/server'
 import type { ShopContext } from '@/lib/shop-context'
 
+// Per-request CSP nonces must never be embedded in shared static HTML.
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Uzum Merch',
   description: 'Внутренний магазин корпоративного мерча',

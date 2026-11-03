@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient()
 
-  let authError: string | null = null
+  let authError = false
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
-      authError = error.message
-      console.error('Supabase exchangeCodeForSession error:', error.message)
+      authError = true
+      console.warn('Corporate email callback rejected')
     }
   } else if (tokenHash) {
     const { error } = await supabase.auth.verifyOtp({
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (error) {
-      authError = error.message
-      console.error('Supabase verifyOtp error:', error.message)
+      authError = true
+      console.warn('Corporate email callback rejected')
     }
   } else {
     const hashCallbackUrl = new URL('/auth/hash-callback', origin)
@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
     <title>Завершаем вход</title>
   </head>
   <body>
-    <script>
-      var target = ${JSON.stringify(hashCallbackUrl.toString())};
+    <script nonce="${request.headers.get('x-nonce') || ''}">
+      var target = ${JSON.stringify(hashCallbackUrl.toString()).replaceAll('<', '\\u003c')};
       window.location.replace(target + window.location.hash);
     </script>
   </body>
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
   const loginUrl = new URL('/login', origin)
   loginUrl.searchParams.set('error', 'auth_failed')
-  loginUrl.searchParams.set('description', authError)
+  loginUrl.searchParams.set('description', 'Не удалось подтвердить вход. Запросите новую ссылку.')
 
   return NextResponse.redirect(loginUrl)
 }

@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 export async function GET(request:NextRequest) {
@@ -8,7 +9,7 @@ export async function GET(request:NextRequest) {
   const view=request.nextUrl.searchParams.get('view')
   if(view!=='roles'&&view!=='stock')return NextResponse.json({error:'Неизвестный запрос'},{status:400})
   const {data,error}=await s.rpc(view==='roles'?'super_admin_roles':'super_stock_overview',{})
-  return error?NextResponse.json({error:error.message},{status:400}):NextResponse.json(data,{headers:{'Cache-Control':'no-store'}})
+  return error?NextResponse.json({error:publicError(error)},{status:400}):NextResponse.json(data,{headers:{'Cache-Control':'no-store'}})
 }
 export async function POST(request: NextRequest) {
   const s = await createClient()
@@ -21,17 +22,17 @@ export async function POST(request: NextRequest) {
   if(b.action==='role') {
     if(typeof b.email!=='string'||typeof b.super!=='boolean'||typeof b.enabled!=='boolean'||(!b.super&&!validId(b.unit)))return NextResponse.json({error:'Проверьте email и магазин'},{status:400})
     const {error}=await s.rpc('super_set_admin',{p_email:b.email,p_unit:b.super?null:b.unit,p_super:b.super,p_enabled:b.enabled})
-    return error?NextResponse.json({error:error.message},{status:400}):NextResponse.json({ok:true})
+    return error?NextResponse.json({error:publicError(error)},{status:400}):NextResponse.json({ok:true})
   }
   if(b.action==='transfer') {
     if(b.target_unit!==undefined) {
       if(!validId(b.id)||!validId(b.source)||!validId(b.target_unit)||!Number.isSafeInteger(b.qty)||b.qty<=0)return NextResponse.json({error:'Укажите товар, БЮ и положительное целое количество'},{status:400})
       const {data,error}=await s.rpc('super_transfer_stock_to_unit',{p_id:b.id,p_source:b.source,p_unit:b.target_unit,p_qty:b.qty})
-      return error?NextResponse.json({error:error.message},{status:400}):NextResponse.json(data)
+      return error?NextResponse.json({error:publicError(error)},{status:400}):NextResponse.json(data)
     }
     if(!validId(b.id)||!validId(b.source)||!validId(b.target)||!Number.isSafeInteger(b.qty)||b.qty<=0)return NextResponse.json({error:'Укажите товар, склады и положительное целое количество'},{status:400})
     const {data,error}=await s.rpc('super_transfer_stock',{p_id:b.id,p_source:b.source,p_target:b.target,p_qty:b.qty})
-    return error?NextResponse.json({error:error.message},{status:400}):NextResponse.json(data)
+    return error?NextResponse.json({error:publicError(error)},{status:400}):NextResponse.json(data)
   }
   return NextResponse.json({error:'Неизвестное действие'},{status:400})
 }

@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (employeeError) {
-      return NextResponse.json({ error: employeeError.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(employeeError) }, { status: 400 })
     }
 
     if (!(await supabase.rpc('is_admin', {})).data || !employee || employee.is_active === false) {
@@ -50,12 +51,12 @@ export async function POST(request: NextRequest) {
       .eq('id', 1)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ error: publicError(error) }, { status: 400 })
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Неизвестная ошибка'
+    const message = error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

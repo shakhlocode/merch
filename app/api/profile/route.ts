@@ -1,3 +1,4 @@
+import { publicError } from '@/lib/security/public-error.mjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message },
+        { error: publicError(error) },
         { status: 400 }
       )
     }
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Неизвестная ошибка'
+      error instanceof Error ? publicError(error) : 'Неизвестная ошибка'
 
     return NextResponse.json(
       { error: message },
