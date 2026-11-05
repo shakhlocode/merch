@@ -4193,3 +4193,9 @@ input:focus, select:focus, textarea:focus {
 .order-labels-dialog { width: min(980px, calc(100vw - 28px)); }
 
 .receipt-qr-image svg { display: block; width: 100%; height: auto; }
+
+/* Camera and pickup details stay above the page, including on small phones. */
+.issue-overlay{position:fixed;inset:0;z-index:10000;background:#fff;display:flex;flex-direction:column;overflow:auto;overscroll-behavior:contain;padding:env(safe-area-inset-top) max(18px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(18px,env(safe-area-inset-left));height:100dvh}
+.issue-overlay-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;flex-shrink:0}
+.issue-overlay-head h2{margin:0;font-size:22px}.issue-pickup-body{width:100%;max-width:680px;margin:0 auto;padding:16px 0 30px;overflow-wrap:anywhere}.issue-pickup-body> a{display:inline-block;margin-top:22px}.issue-recipient span,.issue-location span{display:block;font-size:14px;margin-bottom:8px}.issue-recipient strong{display:block;font-size:24px}.issue-location{padding:22px;border:2px solid #8a43ff;background:#f3ecff;border-radius:16px;margin:20px 0;white-space:pre-wrap}.issue-location strong{font-size:26px}.issue-confirm-btn{width:100%;min-height:56px;margin-top:10px}.issue-camera-overlay{background:#16111f;color:white;overflow:hidden}.issue-camera-video{display:block!important;min-height:0;width:100%;flex:1;object-fit:contain;background:#000;border-radius:12px}.issue-camera-hint{padding:12px 0;margin:0;text-align:center;flex-shrink:0;font-size:14px}
+@media(min-width:800px){.issue-overlay{padding-left:max(30px,calc((100vw - 900px)/2));padding-right:max(30px,calc((100vw - 900px)/2))}}

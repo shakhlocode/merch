@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-05",
+  "mainProduction": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "prototypeProduction": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "scope": "npm audit --omit=dev; infrastructure and corporate integrations not scanned",
+  "fullLifecycleE2E": "not run: fresh Docker stack could not start due to disk space; temporary resources removed"
+}

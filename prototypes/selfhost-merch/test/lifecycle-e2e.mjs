@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import {chromium} from 'playwright'
 import assert from 'node:assert/strict'
 import {readFile,readdir} from 'node:fs/promises'
@@ -23,10 +24,12 @@ try{
  await event(c,bad,403,false);await api(alice.c,'/api/me')
  await post(fin,'/api/admin/hr',{campaignId:cid,rows:[{full_name:'X',legal_entity:'X',position:'X',phone:'+998000000000',pinfl:'90000000000001'}]},400)
  console.log('PASS: trusted corporate attributes stored; unsigned lifecycle and cross-unit HR import denied')
- const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII='
+ const png=(await sharp({create:{width:12,height:8,channels:3,background:'purple'}}).png().withMetadata({exif:{IFD0:{Artist:'PRIVATE'}}}).toBuffer()).toString('base64')
+ await post(op,'/api/admin/products',{name:'Rejected fake image',kind:'Мерч',scope:'catalog',unit:'ecom',variants:[{size:'M',color:'Как на фото',qty:1}],image:Buffer.from('<svg>fake</svg>').toString('base64')},400)
+ assert.equal(sql("select count(*) from demo_variants where product='Rejected fake image'"),'0')
  await op.p.goto(base+'/admin');const productForm=op.p.locator('#create-product')
  await productForm.locator('[name=name]').fill('Тестовый товар жизненного цикла');await productForm.locator('[name=kind]').fill('Одежда');await productForm.locator('[name=unit]').selectOption('ecom');await productForm.locator('[name=scope]').selectOption('both');await productForm.locator('[name=variants]').fill('M;7\nL;9');await productForm.locator('[name=color]').fill('Фиолетовый');await productForm.locator('[name=image]').setInputFiles({name:'test.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await productForm.getByRole('button',{name:'Создать товар',exact:true}).click();await op.p.getByText('Товар и изображение сохранены в БД').waitFor()
- assert.equal(sql("select count(*) from demo_variants where product='Тестовый товар жизненного цикла' and image_data is not null and product_kind='Одежда'"),'2')
+ assert.equal(sql("select count(*) from demo_variants where product='Тестовый товар жизненного цикла' and image_data is not null and image_mime='image/webp' and encode(substring(image_data from 9 for 4),'escape')='WEBP' and product_kind='Одежда'"),'2')
  const aOrder=await post(alice,'/api/orders',{requestKey:randomUUID(),items:[shirt]},201)
  const before=Number(sql(`select reserved from demo_variants where id='${shirt}'`));assert.equal(before,1)
  // Before deletion: backup contains a pending order and personal profile.

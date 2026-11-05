@@ -1,3 +1,4 @@
+import {normalizeProductImage} from './image.mjs'
 import {randomUUID} from 'node:crypto'
 import {equal,hash,random,sessionHash} from './security.mjs'
 import {sourceKey,verifyEvent,eraseNow} from './lifecycle-auth.mjs'
@@ -70,8 +71,8 @@ export async function lifecycleRoute(req,res,url,s,h){
   if(b.image){
    if(typeof b.image!=='string'||b.image.length>2800000||!/^[A-Za-z0-9+/]+={0,2}$/.test(b.image))throw new Error('Изображение слишком большое или повреждено')
    data=Buffer.from(b.image,'base64')
-   mime=data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':data[0]===255&&data[1]===216&&data[2]===255?'image/jpeg':data.toString('ascii',0,4)==='RIFF'&&data.toString('ascii',8,12)==='WEBP'?'image/webp':null
-   if(!mime||data.length>2*1024*1024)throw new Error('Поддерживаются PNG, JPEG и WebP до 2 МБ')
+   const normalized=await normalizeProductImage(data)
+   data=normalized.bytes;mime=normalized.contentType
   }
   await transaction(pool,async db=>{for(const v of b.variants){
    if(!text(v.size)||!text(v.color)||!Number.isInteger(v.qty)||v.qty<0||v.qty>1000000)throw new Error('Проверьте размеры и количество')

@@ -8,7 +8,7 @@
   "scripts": {
     "init": "node scripts/init.mjs",
     "ports": "node scripts/ports.mjs",
-    "test": "node --test test/security.test.mjs",
+    "test": "node --test test/security.test.mjs test/image.test.mjs",
     "test:e2e": "node test/e2e.mjs",
     "test:portal": "node test/portal-e2e.mjs",
     "test:welcome": "node test/welcome-email-e2e.mjs",
@@ -19,7 +19,8 @@
   "dependencies": {
     "jose": "6.1.0",
     "pg": "8.16.3",
-    "qrcode": "1.5.4"
+    "qrcode": "1.5.4",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "playwright": "1.56.1"
