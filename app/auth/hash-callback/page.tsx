@@ -1,5 +1,6 @@
 'use client'
 
+import { internalRedirect } from '@/lib/security/internal-redirect.mjs'
 import { createClient } from '@/lib/supabase/client'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -87,9 +88,8 @@ function HashCallbackContent() {
         }
 
         window.location.replace(next)
-      } catch (error) {
-        const description =
-          error instanceof Error ? error.message : 'Не удалось выполнить вход'
+      } catch {
+        const description = 'Не удалось подтвердить вход. Запросите новую ссылку.'
         window.location.replace(
           `/login?error=auth_failed&description=${encodeURIComponent(description)}`
         )
@@ -132,9 +132,7 @@ function getCallbackParams(searchParams: URLSearchParams) {
     }
   }
 
-  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.includes('\\')
-    ? nextParam
-    : '/set-password?reset=1'
+  const next = internalRedirect(nextParam, window.location.origin, '/set-password?reset=1')
 
   return { next, tokenHash, type }
 }

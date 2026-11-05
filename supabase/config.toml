@@ -41,10 +41,11 @@ additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback", "http://127.0
 jwt_expiry = 3600
 enable_signup = true
 
+# Confirm Email must also be enabled separately in hosted/self-hosted Auth settings.
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
-enable_confirmations = false
+enable_confirmations = true
 
 [edge_runtime]
 enabled = false

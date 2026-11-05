@@ -1,19 +1,19 @@
+import { internalRedirect } from '@/lib/security/internal-redirect.mjs'
 import { createClient } from '@/lib/supabase/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
-  const origin = requestUrl.origin
+  // Prefer the configured public origin over a reverse proxy's internal hostname.
+  const origin = new URL(process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin).origin
 
   const code = requestUrl.searchParams.get('code')
   const tokenHash = requestUrl.searchParams.get('token_hash')
   const type = (requestUrl.searchParams.get('type') ?? 'email') as EmailOtpType
 
   const nextParam = requestUrl.searchParams.get('next') ?? '/catalog'
-  const next = nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.includes('\\')
-    ? nextParam
-    : '/catalog'
+  const next = internalRedirect(nextParam, origin, '/catalog')
 
   const supabase = await createClient()
 

@@ -10,7 +10,8 @@
     "db:build": "node scripts/build-database.mjs",
     "db:test": "node scripts/test-database.mjs",
     "types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > lib/supabase/types.ts",
-    "test:security": "node --test tests/security-review.test.mjs"
+    "test:security": "node --test tests/security-review.test.mjs tests/anonymous-access.test.mjs",
+    "security:deployment": "node scripts/check-deployment.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.0",

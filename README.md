@@ -1,3 +1,5 @@
+Проверка анонимного доступа 5 ноября: [исправления и что требуется в окружении](docs/ANONYMOUS-ACCESS-REMEDIATION.md).
+
 Актуальный статус и условия корпоративного запуска: [docs/DEPLOYMENT-READINESS.md](docs/DEPLOYMENT-READINESS.md).
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
